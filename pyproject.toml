@@ -1,8 +1,10 @@
 [project]
-name = "example"
+name = "fly-in"
 version = "1.0.0"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.4",
+]
 
 # [build-system]
 # requires = ["hatchling"]  # the tool that build .whl
@@ -19,7 +21,7 @@ disallow_untyped_defs = true
 check_untyped_defs = true
 explicit_package_bases = true
 mypy_path = "src"
-plugins = []
+plugins = ['pydantic.mypy']
 
 [dependency-groups]
 dev = [
