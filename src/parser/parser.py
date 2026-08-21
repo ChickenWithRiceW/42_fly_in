@@ -93,7 +93,8 @@ class ConfigLoader:
             file_name (str): Filename of config file
 
         Returns:
-            list[tuple[list[str], int]] | None: List of tuples containing line and line number
+            list[tuple[list[str], int]] | None: List of tuples containing line
+                and line number
         """
         split: list[tuple[list[str], int]] = []
 
@@ -123,7 +124,8 @@ class ConfigLoader:
             match line[0]:
                 case "nb_drones:":
                     if nb_drones is not None:
-                        print(f"Line:{line_nb} Error: nb_drones was already defined")
+                        print(
+                            f"Line:{line_nb} Error: nb_drones already defined")
                         return None
 
                     nb_drones = cls._nb_drones_parse(line, line_nb)
@@ -132,7 +134,8 @@ class ConfigLoader:
 
                 case "start_hub:":
                     if start_hub is not None:
-                        print(f"Line:{line_nb} Error: start_hub was already defined")
+                        print(
+                            f"Line:{line_nb} Error: start_hub already defined")
                         return None
                     start_hub = cls._hub_parser(line, line_nb)
                     if start_hub is None:
@@ -140,26 +143,29 @@ class ConfigLoader:
 
                 case "end_hub:":
                     if end_hub is not None:
-                        print(f"Line:{line_nb} Error: end_hub was already defined")
+                        print(
+                            f"Line:{line_nb} Error: end_hub already defined")
                         return None
                     end_hub = cls._hub_parser(line, line_nb)
                     if end_hub is None:
                         return None
 
                 case "hub:":
-                    tmp = cls._hub_parser(line, line_nb)
-                    if tmp is None:
+                    tmp_h = cls._hub_parser(line, line_nb)
+                    if tmp_h is None:
                         return None
-                    hubs.append(tmp)
+                    hubs.append(tmp_h)
 
                 case "connection:":
-                    tmp = cls._connection_parse(line, line_nb)
-                    if tmp is None:
+                    tmp_c = cls._connection_parse(line, line_nb)
+                    if tmp_c is None:
                         return None
-                    connections.append(tmp)
+                    connections.append(tmp_c)
+
                 case _:
                     if line[0]:
-                        print(f"Line:{line_nb} Error: Unknown keyword '{line[0]}'")
+                        print(
+                            f"Line:{line_nb} Error: Unknown key '{line[0]}'")
                         return None
         try:
             map_val = Map(
@@ -202,16 +208,20 @@ class ConfigLoader:
                 return None
         try:
             return Hub(
-                name=input[1], coordinate=(input[2], input[3]), metadata=metadata
-                )
+                name=input[1],
+                coordinate=(input[2], input[3]),
+                metadata=metadata
+            )
         except ValidationError as e:
             for error in e.errors():
-                print(f"Line:{line_nb} Error: Wrong input '{error['input']}'. {error['msg']}")
+                print(f"Line:{line_nb} Error: Wrong input \
+                      '{error['input']}'. {error['msg']}")
             return None
 
-
     @classmethod
-    def _connection_parse(cls, input: list[str], line_nb: int) -> Connection | None:
+    def _connection_parse(
+        cls, input: list[str],
+            line_nb: int) -> Connection | None:
         max_link_capacity: dict[str, str] | None = {}
 
         if len(input) > 3:
@@ -223,16 +233,20 @@ class ConfigLoader:
             print(f"Line:{line_nb} Error: Connection syntax invalid")
             return None
 
-        #! Give me a second
         if len(input) == 3:
             max_link_capacity = cls._metadata_parse(input[2], line_nb)
-            if max_link_capacity is None:
-                return None
+        if max_link_capacity is None:
+            return None
         try:
-            return Connection(from_zone=split[0], to_zone=split[1], **max_link_capacity)
+            return Connection(
+                from_zone=split[0],
+                to_zone=split[1],
+                **max_link_capacity)
+
         except ValidationError as e:
             for error in e.errors():
-                print(f"Line:{line_nb} Error: Wrong input '{error['input']}'. {error['msg']}")
+                print(f"Line:{line_nb} Error: Wrong input \
+                      '{error['input']}'. {error['msg']}")
             return None
 
     @staticmethod
@@ -256,12 +270,20 @@ class ConfigLoader:
         return arguments
 
     @classmethod
-    def _hub_metadata_parse(cls, input: str, line_nb: int) -> HubMetadata | None:
+    def _hub_metadata_parse(
+        cls, input: str,
+            line_nb: int) -> HubMetadata | None:
+        metadata_arguments: dict[str, str] | None
+
+        metadata_arguments = cls._metadata_parse(input, line_nb)
+        if metadata_arguments is None:
+            return None
         try:
-            return HubMetadata(**cls._metadata_parse(input, line_nb))
+            return HubMetadata(**metadata_arguments)
         except ValidationError as e:
             for error in e.errors():
-                print(f"Line:{line_nb} Error: Wrong input '{error['input']}'. {error['msg']}")
+                print(f"Line:{line_nb} Error: Wrong input \
+                      '{error['input']}'. {error['msg']}")
             return None
 
     @staticmethod
@@ -279,26 +301,23 @@ class ConfigLoader:
         hubs.add(map_val.start_hub.name)
         hubs.add(map_val.end_hub.name)
 
-        seen = set()
+        seen_con = set()
         for connection in map_val.connections:
-            if connection.from_zone not in hubs or connection.to_zone not in hubs:
-                print(f"Error: Connection point not found '{connection.from_zone}'")
+            if connection.from_zone not in hubs \
+                    or connection.to_zone not in hubs:
+                print(f"Error: Connection point not found \
+                      '{connection.from_zone}'")
                 return None
 
             if connection.from_zone == connection.to_zone:
-                print(f"Error: Connection can't connect to itself '{connection.from_zone}-{connection.from_zone}'")
+                print(f"Error: Connection can't connect to itself \
+                      '{connection.from_zone}-{connection.from_zone}'")
                 return None
 
-            if (connection.from_zone, connection.to_zone) in seen:
-                print(f"Error: Duplicated connection found '{connection.from_zone}-{connection.to_zone}'")
+            if (connection.from_zone, connection.to_zone) in seen_con:
+                print(f"Error: Duplicated connection found \
+                      '{connection.from_zone}-{connection.to_zone}'")
                 return None
             else:
-                seen.add((connection.from_zone, connection.to_zone))
+                seen_con.add((connection.from_zone, connection.to_zone))
         return map_val
-
-
-if __name__ == "__main__":
-    # pass
-    map_val = ConfigLoader.config_loader("example_map.txt")
-
-    print(map_val.model_dump_json(indent=2))
