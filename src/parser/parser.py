@@ -60,17 +60,17 @@ class MapException(Exception):
         super().__init__(msg)
 
 
-class Map(BaseModel):
+class Config(BaseModel):
     nb_drones: int
     start_hub: Hub
     end_hub: Hub
-    zones: list[Hub]
+    zones: dict[str, Hub]
     connections: list[Connection]
 
 
 class ConfigLoader:
     @classmethod
-    def config_loader(cls, file_name: str) -> Map | None:
+    def config_loader(cls, file_name: str) -> Config | None:
         """Load config from provided file name if possible
 
         Args:
@@ -112,11 +112,12 @@ class ConfigLoader:
         return split
 
     @classmethod
-    def _parser(cls, loaded_file: list[tuple[list[str], int]]) -> Map | None:
+    def _parser(cls, loaded_file: list[tuple[list[str], int]]) -> Config | None:
         nb_drones: int | None = None
         start_hub: Hub | None = None
         end_hub: Hub | None = None
-        hubs: list[Hub] = []
+
+        hubs: dict[str, Hub] = {}
         connections: list[Connection] = []
 
         # Index 0 is the key name.
@@ -137,24 +138,26 @@ class ConfigLoader:
                         print(
                             f"Line:{line_nb} Error: start_hub already defined")
                         return None
-                    start_hub = cls._hub_parser(line, line_nb)
+                    start_hub = cls._hub_parser(line, line_nb, hubs)
                     if start_hub is None:
                         return None
+                    hubs.update({start_hub.name: start_hub})
 
                 case "end_hub:":
                     if end_hub is not None:
                         print(
                             f"Line:{line_nb} Error: end_hub already defined")
                         return None
-                    end_hub = cls._hub_parser(line, line_nb)
+                    end_hub = cls._hub_parser(line, line_nb, hubs)
                     if end_hub is None:
                         return None
+                    hubs.update({end_hub.name: end_hub})
 
                 case "hub:":
-                    tmp_h = cls._hub_parser(line, line_nb)
+                    tmp_h = cls._hub_parser(line, line_nb, hubs)
                     if tmp_h is None:
                         return None
-                    hubs.append(tmp_h)
+                    hubs.update({tmp_h.name: tmp_h})
 
                 case "connection:":
                     tmp_c = cls._connection_parse(line, line_nb)
@@ -167,8 +170,9 @@ class ConfigLoader:
                         print(
                             f"Line:{line_nb} Error: Unknown key '{line[0]}'")
                         return None
+
         try:
-            map_val = Map(
+            map_val = Config(
                 nb_drones=nb_drones,
                 start_hub=start_hub,
                 end_hub=end_hub,
@@ -195,7 +199,12 @@ class ConfigLoader:
         return number
 
     @classmethod
-    def _hub_parser(cls, input: list[str], line_nb: int) -> Hub | None:
+    def _hub_parser(
+        cls,
+        input: list[str],
+        line_nb: int,
+            hubs: dict[str, Hub]) -> Hub | None:
+
         metadata: HubMetadata | None = None
 
         if "-" in input[1]:
@@ -207,11 +216,15 @@ class ConfigLoader:
             if metadata is None:
                 return None
         try:
-            return Hub(
+            tmp = Hub(
                 name=input[1],
                 coordinate=(input[2], input[3]),
                 metadata=metadata
             )
+            if tmp.name in hubs:
+                print(f"Line:{line_nb} Error: Zone duplicate found")
+                return None
+            return tmp
         except ValidationError as e:
             for error in e.errors():
                 print(f"Line:{line_nb} Error: Wrong input \
@@ -286,25 +299,14 @@ class ConfigLoader:
                       '{error['input']}'. {error['msg']}")
             return None
 
+    # TODO: Could put this into connections themselfs.
     @staticmethod
-    def _verify(map_val: Map) -> Map | None:
-        seen = set()
-
-        for hub in map_val.zones:
-            if hub.name in seen:
-                print(f"Error: Duplicate hub found: '{hub.name}'")
-                return None
-            else:
-                seen.add(hub.name)
-
-        hubs = set(zone.name for zone in map_val.zones)
-        hubs.add(map_val.start_hub.name)
-        hubs.add(map_val.end_hub.name)
-
+    def _verify(map_val: Config) -> Config | None:
         seen_con = set()
+
         for connection in map_val.connections:
-            if connection.from_zone not in hubs \
-                    or connection.to_zone not in hubs:
+            if connection.from_zone not in map_val.zones \
+                    or connection.to_zone not in map_val.zones:
                 print(f"Error: Connection point not found \
                       '{connection.from_zone}'")
                 return None
@@ -314,10 +316,16 @@ class ConfigLoader:
                       '{connection.from_zone}-{connection.from_zone}'")
                 return None
 
-            if (connection.from_zone, connection.to_zone) in seen_con:
-                print(f"Error: Duplicated connection found \
-                      '{connection.from_zone}-{connection.to_zone}'")
+            # TODO: Could be improved in performance
+            if (connection.from_zone, connection.to_zone) in seen_con \
+                    or (connection.to_zone, connection.from_zone) in seen_con:
+                print("Error: Duplicated connection found "
+                      f"'{connection.from_zone}-{connection.to_zone}'")
                 return None
             else:
                 seen_con.add((connection.from_zone, connection.to_zone))
         return map_val
+
+
+if __name__ == "__main__":
+    ConfigLoader.config_loader("example_map.txt")
