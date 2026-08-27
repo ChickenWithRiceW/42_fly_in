@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import ValidationError
-from .config import Config, Connection, Hub, HubMetadata
+from ..parser.config import Config, Connection, Hub, HubMetadata
 
 
 class FileData:

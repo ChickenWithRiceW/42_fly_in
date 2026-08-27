@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
-from enum import Enum
+from enum import Enum, IntEnum
 
 
 # TODO: Will be changed into pygame colors
@@ -20,6 +20,13 @@ class Color(Enum):
     CRIMSON = "crimson"
     RAINBOW = "rainbow"
     YELLOW = "yellow"
+
+
+class Direction(IntEnum):
+    BLOCKED = 0
+    BI = 1
+    MONO = 2
+    NONE = 3
 
 
 class ZoneType(Enum):
@@ -42,12 +49,14 @@ class Hub(BaseModel):
     metadata: Optional[HubMetadata] = HubMetadata(
         color=Color.BLUE, zone=ZoneType.NORMAL)
     connections: Optional[list[Connection]] = []
+    cost: Optional[float] = float("inf")
 
 
 class Connection(BaseModel):
     from_zone: str | Hub
     to_zone: str | Hub
     max_link_capacity: Optional[int] = Field(ge=0, default=1)
+    direction: Optional[Direction] = Direction.NONE
 
 
 class Config(BaseModel):
