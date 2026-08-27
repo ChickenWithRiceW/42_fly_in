@@ -1,110 +1,93 @@
 import pygame
 from pygame.locals import *
 from ..parser import Config
-from .code_rip import draw_arrow
 
 
+class Pos:
+    min_val: int
+    max_val: int
+    difference: int
 
-def render_lines(config: Config, screen_resolution, x_difference, y_difference, x_min, y_min, screen) -> None:
+
+class PosValues:
+    def __init__(self, x: Pos, y: Pos):
+        self.x = x
+        self.y = y
+
+
+class Scale:
+    def __init__(self, x_scale: int, y_scale: int, scale: int):
+        self.x_scale = x_scale
+        self.y_scale = y_scale
+
+        self.scale = scale
+
+
+def render_lines(config: Config, pos_values: PosValues, screen, scale) -> None:
+
+    line_thickness = int(0.1 * scale.scale)
+    # todo: Make this once and not every time
     for connection in config.connections:
         zone_x, zone_y = connection.from_zone.coordinate
 
-        s_pos_x = (screen_resolution[0] / x_difference) / 1
-        zone_x = zone_x + abs(x_min) + 0.5
-        s_pos_x = s_pos_x * zone_x
-
-        s_pos_y = (screen_resolution[1] / y_difference) / 1
-        zone_y = zone_y + abs(y_min) + 0.5
-        s_pos_y = s_pos_y * zone_y
+        start_pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
+        start_pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
 
         zone_x, zone_y = connection.to_zone.coordinate
 
-        e_pos_x = (screen_resolution[0] / x_difference) / 1
-        zone_x = zone_x + abs(x_min) + 0.5
-        e_pos_x = e_pos_x * zone_x
-
-        e_pos_y = (screen_resolution[1] / y_difference) / 1
-        zone_y = zone_y + abs(y_min) + 0.5
-        e_pos_y = e_pos_y * zone_y
-
+        end_pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
+        end_pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
 
         if connection.from_zone.metadata.zone.value == "priority" or connection.to_zone.metadata.zone.value == "priority":
-            pygame.draw.line(screen, "gold", [s_pos_x, s_pos_y], [e_pos_x, e_pos_y], 10)
+            pygame.draw.line(screen, "gold", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
         elif connection.from_zone.metadata.zone.value == "blocked" or connection.to_zone.metadata.zone.value == "blocked":
-            pygame.draw.line(screen, "red", [s_pos_x, s_pos_y], [e_pos_x, e_pos_y], 10)
+            pygame.draw.line(screen, "red", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        elif connection.from_zone.metadata.zone.value == "restricted" or connection.to_zone.metadata.zone.value == "restricted":
+            pygame.draw.line(screen, "blue", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
         else:
-            pygame.draw.line(screen, "black", [s_pos_x, s_pos_y], [e_pos_x, e_pos_y], 10)
+            pygame.draw.line(screen, "black", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
 
 
-        # body_width = 0.1*(screen_resolution[0] + screen_resolution[1]) / (x_difference + y_difference)
-        # bigger_thing = 0.3*(screen_resolution[0] + screen_resolution[1]) / (x_difference + y_difference)
+def render_circle(config, pos_values: PosValues, screen, text_font, scale):
+    circle_radius = 0.3 * scale.scale
+
+    for zone in config.zones.values():
+
+        zone_x, zone_y = zone.coordinate
+
+        pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
+        pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
+
+        pygame.draw.circle(screen, zone.metadata.color.value, [pos_x, pos_y], circle_radius)
+
+        img = text_font.render(str(zone.cost), True, "black")
+        screen.blit(img, [pos_x, pos_y])
+        # print(zone.name, zone.coordinate, pos_x, pos_y)
 
 
-        # offset = 0.2*(screen_resolution[0] + screen_resolution[1]) / (x_difference + y_difference)
+def visual_logic(config: Config, pos_values: PosValues, screen, text_font, scale):
 
-        # if e_pos_x == s_pos_x:
-        #     if e_pos_y > s_pos_y:
-        #         e_pos_y -= offset
-        #         s_pos_y += offset
-        #     else:
-        #         e_pos_y += offset
-        #         s_pos_y -= offset
+    # Render lines
+    render_lines(config, pos_values, screen, scale)
 
-        # if e_pos_y == s_pos_y:
-        #     if e_pos_x > s_pos_x:
-        #         e_pos_x -= offset
-        #         s_pos_x += offset
-        #     else:
-        #         e_pos_x += offset
-        #         s_pos_x -= offset
+    # # Render circle.
+    render_circle(config, pos_values, screen, text_font, scale)
 
 
-
-        # if connection.direction == 2:
-        #     draw_arrow(screen, pygame.Vector2(s_pos_x, s_pos_y), pygame.Vector2(e_pos_x, e_pos_y), "black", body_width, bigger_thing, body_width + 10)
-        # elif connection.direction == 1:
-        #     draw_arrow(screen, pygame.Vector2(s_pos_x, s_pos_y), pygame.Vector2(e_pos_x, e_pos_y), "blue", body_width, bigger_thing, body_width + 10)
-        #     draw_arrow(screen, pygame.Vector2(e_pos_x, e_pos_y), pygame.Vector2(s_pos_x, s_pos_y), "blue", body_width, bigger_thing, body_width + 10)
-        # elif connection.direction == 3:
-        #     draw_arrow(screen, pygame.Vector2(e_pos_x, e_pos_y), pygame.Vector2(s_pos_x, s_pos_y), "red", body_width, bigger_thing, body_width + 10)
-            
-
-        
-
-def visual(config: Config):
+def visual_worker(config: Config):
 
     pygame.init()
 
     screen_resolution = pygame.display.get_desktop_sizes()[0]
-
     screen = pygame.display.set_mode(screen_resolution, pygame.RESIZABLE)
+
     pygame.display.toggle_fullscreen()
     pygame.display.set_caption("Fly in visual")
 
     clock = pygame.time.Clock()
 
-    text_font = pygame.font.SysFont("Arial", 20)
-
-
-    x_min = min(zone.coordinate[0] for zone in config.zones.values())
-    x_max = max(zone.coordinate[0] for zone in config.zones.values())
-    x_difference = abs(x_max - x_min)
-    if x_difference == 0:
-        x_difference = 1
-    else:
-        x_difference += 1
-
-
-
-    y_min = min(zone.coordinate[1] for zone in config.zones.values())
-    y_max = max(zone.coordinate[1] for zone in config.zones.values())
-    y_difference = abs(y_max - y_min)
-    if y_difference == 0:
-        y_difference = 1
-    else:
-        y_difference += 1
-
-
+    # Scale logic
+    pos_values = possition_calc(config)
 
     while True:
         # Process player inputs.
@@ -114,7 +97,6 @@ def visual(config: Config):
                 raise SystemExit
 
         # Do logical updates here.
-        # ...
         key = pygame.key.get_just_pressed()
         if key[K_ESCAPE]:
             pygame.event.pump(pygame.QUIT)
@@ -123,34 +105,48 @@ def visual(config: Config):
 
         screen_resolution = pygame.display.get_window_size()
 
-        # The circle radius
-        circle_radius = 0.2*(screen_resolution[0] + screen_resolution[1]) / (x_difference + y_difference)
+        scale = scale_calc(pos_values, screen_resolution)
+        text_font = pygame.font.SysFont("Arial", int(0.15 * scale.scale))
+
 
         screen.fill("white")  # Fill the display with a solid color
 
         # Render the graphics here.
-        # ...
+        visual_logic(config, pos_values, screen, text_font, scale)
 
-        render_lines(config, screen_resolution, x_difference, y_difference, x_min, y_min, screen)
-
-        # Render circle.
-        for zone in config.zones.values():
-            pos_x = (screen_resolution[0] / x_difference) / 1
-            zone_x = zone.coordinate[0] + abs(x_min) + 0.5
-            pos_x = pos_x * zone_x
-
-            pos_y = (screen_resolution[1] / y_difference) / 1
-            zone_y = zone.coordinate[1] + abs(y_min) + 0.5
-            pos_y = pos_y * zone_y
-            pygame.draw.circle(screen, zone.metadata.color.value, [pos_x, pos_y], circle_radius)
-
-            img = text_font.render(str(zone.cost), True, "black")
-            screen.blit(img, [pos_x, pos_y])
-            # print(zone.name, zone.coordinate, pos_x, pos_y)
-
-
-
-
-        # pygame.display.flip()  # Refresh on-screen display
         pygame.display.update()
         clock.tick(60)         # wait until next frame (at 60 FPS)
+
+
+def possition_calc(config: Config) -> PosValues:
+    x_pos = Pos()
+
+    x_pos.min_val = min(zone.coordinate[0] for zone in config.zones.values())
+    x_pos.max_val = max(zone.coordinate[0] for zone in config.zones.values())
+    x_pos.difference = abs(x_pos.max_val - x_pos.min_val)
+    if x_pos.difference == 0:
+        x_pos.difference = 1
+    else:
+        x_pos.difference += 1
+
+    y_pos = Pos()
+
+    y_pos.min_val = min(zone.coordinate[1] for zone in config.zones.values())
+    y_pos.max_val = max(zone.coordinate[1] for zone in config.zones.values())
+    y_pos.difference = abs(y_pos.max_val - y_pos.min_val)
+    if y_pos.difference == 0:
+        y_pos.difference = 1
+    else:
+        y_pos.difference += 1
+
+    x_pos.min_val = abs(x_pos.min_val) + 0.5
+    y_pos.min_val = abs(y_pos.min_val) + 0.5
+
+    return PosValues(x_pos, y_pos)
+
+def scale_calc(pos_values: PosValues, screen_resolution):
+    x_scale = (screen_resolution[0] // pos_values.x.difference)
+    y_scale = (screen_resolution[1] // pos_values.y.difference)
+
+    scale = ((screen_resolution[0] + screen_resolution[1]) // (pos_values.x.difference + pos_values.y.difference))
+    return Scale(x_scale, y_scale, scale)
