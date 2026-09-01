@@ -1,4 +1,3 @@
-from __future__ import annotations
 from ..parser.config import ZoneType, Config
 import heapq
 
