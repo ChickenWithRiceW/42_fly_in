@@ -17,7 +17,7 @@ def pre_calculate_map(config: Config) -> bool:
     src = config.end_hub.name
 
     # Min-heap (priority queue) storing pairs of (distance, node)
-    pq = []
+    pq: list[tuple[int, str]] = []
 
     # Distance from source to itself is 0
     config.end_hub.cost = 0
@@ -39,11 +39,11 @@ def pre_calculate_map(config: Config) -> bool:
                 hub = con.from_zone
 
             if hub.metadata.zone == ZoneType.RESTRICTED:
-                w = 2
+                w = 2.0
             elif hub.metadata.zone == ZoneType.BLOCKED:
                 w = float("inf")
             else:
-                w = 1
+                w = 1.0
 
             # If we found a shorter path to v through u, update it
             if config.zones[u].cost + w < config.zones[hub.name].cost:
