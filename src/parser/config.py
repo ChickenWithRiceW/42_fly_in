@@ -2,24 +2,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from enum import Enum, IntEnum
-
-
-# TODO: Will be changed into pygame colors
-class Color(Enum):
-    RED = "red"
-    GREEN = "green"
-    BLUE = "blue"
-    PURPLE = "purple"
-    BLACK = "black"
-    BROWN = "brown"
-    ORANGE = "orange"
-    MAROON = "maroon"
-    GOLD = "gold"
-    DARKRED = "darkred"
-    VIOLET = "violet"
-    CRIMSON = "crimson"
-    RAINBOW = "rainbow"
-    YELLOW = "yellow"
+import pygame
 
 
 class Direction(IntEnum):
@@ -38,7 +21,8 @@ class ZoneType(Enum):
 
 class HubMetadata(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    color: Optional[Color] = Field(default=Color.GREEN)
+    color: Optional[tuple[int, int, int, int]] = Field(
+        default=pygame.color.THECOLORS["black"])
     max_drones: Optional[int] = Field(ge=1, default=1)
     zone: Optional[ZoneType] = Field(default=ZoneType.NORMAL)
 
@@ -47,9 +31,10 @@ class Hub(BaseModel):
     name: str
     coordinate: tuple[int, int]
     metadata: Optional[HubMetadata] = HubMetadata(
-        color=Color.BLUE, zone=ZoneType.NORMAL)
+        zone=ZoneType.NORMAL)
     connections: Optional[list[Connection]] = []
     cost: Optional[float] = float("inf")
+    drones: Optional[dict[int, Drone]] = {}
 
 
 class Connection(BaseModel):
@@ -57,6 +42,7 @@ class Connection(BaseModel):
     to_zone: str | Hub
     max_link_capacity: Optional[int] = Field(ge=0, default=1)
     direction: Optional[Direction] = Direction.NONE
+    drones: Optional[dict[int, Drone]] = {}
 
 
 class Config(BaseModel):
@@ -65,3 +51,10 @@ class Config(BaseModel):
     end_hub: Hub
     zones: dict[str, Hub]
     connections: list[Connection]
+
+
+class Drone(BaseModel):
+    id: int
+    position: Connection | Hub
+    next_step: Optional[Connection | Hub | None] = None
+    on_connection: bool = False

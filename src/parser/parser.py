@@ -8,12 +8,18 @@ COLOR_URL: Final[str] = "https://www.pygame.org/docs/ref/color_list.html"
 
 
 class FileData:
-    def __init__(self) -> None:
-        self.file_name: str
+    def __init__(
+        self,
+        file_name: str,
+        hubs: dict[str, Hub],
+        connections: list[Connection]
+    ) -> None:
+
+        self.file_name: str = file_name
+        self.hubs: dict[str, Hub] = hubs
+        self.connections: list[Connection] = connections
         self.line: list[str]
         self.line_nb: int
-        self.hubs: dict[str, Hub]
-        self.connections: list[Connection]
 
 
 class ConfigLoader:
@@ -26,20 +32,12 @@ class ConfigLoader:
             file_name (str): Filename of config file
 
         Returns:
-            Map | None: Map for the drones or None if loading did not work
+            Config | None: Config object or None if loading did not work.
         """
-        file = cls._loader(file_name)
-        if file is None:
+        if (file := cls._loader(file_name)) is None:
             return None
-        config = cls._parser(file, file_name)
-
-        # Linking the zones in the connections.
-        for connection in config.connections:
-            connection.from_zone = config.zones[connection.from_zone]
-            connection.to_zone = config.zones[connection.to_zone]
-
-            connection.from_zone.connections.append(connection)
-            connection.to_zone.connections.append(connection)
+        if (config := cls._parser(file, file_name)) is None:
+            return None
 
         return config
 
@@ -70,9 +68,11 @@ class ConfigLoader:
         return split
 
     @classmethod
-    def _parser(cls,
-                loaded_file: list[tuple[list[str], int]],
-                file_name: str) -> Config | None:
+    def _parser(
+        cls,
+        loaded_file: list[tuple[list[str], int]],
+        file_name: str
+    ) -> Config | None:
         """Parse given list of tuples to check for malformed lines etc.
 
         Args:
@@ -91,10 +91,7 @@ class ConfigLoader:
         hubs: dict[str, Hub] = {}
         connections: list[Connection] = []
 
-        data = FileData()
-        data.file_name = file_name
-        data.hubs = hubs
-        data.connections = connections
+        data = FileData(file_name, hubs, connections)
 
         # Index 0 is the key name.
         for line, line_nb in loaded_file:
@@ -124,7 +121,8 @@ class ConfigLoader:
                 case "connection:":
                     if not (connection := cls._connection_parser(data)):
                         return None
-                    connections.append(connection)
+
+                    cls._connect_hub_to_con(connection, connections, hubs)
 
                 case _:
                     if line[0]:
@@ -147,8 +145,7 @@ class ConfigLoader:
             return None
 
     @staticmethod
-    def _drone_parser(data: FileData,
-                      nb_drones: int | None) -> None | int:
+    def _drone_parser(data: FileData, nb_drones: int | None) -> None | int:
         if nb_drones is not None:
             print(
                 f"{data.file_name}:{data.line_nb} "
@@ -168,10 +165,12 @@ class ConfigLoader:
         return number
 
     @classmethod
-    def _hub_parser(cls,
-                    data: FileData,
-                    start_hub: Hub | None = None,
-                    end_hub: Hub | None = None) -> Hub | None:
+    def _hub_parser(
+        cls,
+        data: FileData,
+        start_hub: Hub | None = None,
+        end_hub: Hub | None = None
+    ) -> Hub | None:
 
         metadata: HubMetadata | None = HubMetadata()
 
@@ -276,8 +275,11 @@ class ConfigLoader:
         return arguments
 
     @classmethod
-    def _hub_metadata_parse(cls,
-                            data: FileData) -> HubMetadata | None:
+    def _hub_metadata_parse(
+        cls,
+        data: FileData
+    ) -> HubMetadata | None:
+
         metadata_arguments: dict[str, Any] | None
 
         metadata_arguments = cls._metadata_parse(data, data.line[4])
@@ -321,9 +323,24 @@ class ConfigLoader:
             return False
 
         for con in data.connections:
-            if {sel.from_zone, sel.to_zone} == {con.from_zone, con.to_zone}:
+            if {sel.from_zone, sel.to_zone} \
+                    == {con.from_zone.name, con.to_zone.name}:
                 print(f"{data.file_name}:{data.line_nb} "
                       "Error: Duplicated connection found "
                       f"'{sel.from_zone}-{sel.to_zone}'")
                 return False
         return True
+
+    @staticmethod
+    def _connect_hub_to_con(
+        connection: Connection,
+        connections: list[Connection],
+        hubs: dict[str, Hub]
+    ) -> None:
+
+        connection.from_zone = hubs[connection.from_zone]
+        connection.to_zone = hubs[connection.to_zone]
+
+        connection.from_zone.connections.append(connection)
+        connection.to_zone.connections.append(connection)
+        connections.append(connection)
