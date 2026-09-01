@@ -3,6 +3,13 @@ from pygame.locals import *
 from ..parser import Config
 
 
+class Drone:
+    def __init__(self, id: int, pos: tuple[int, int]):
+        self.id = id
+        self.pos = pos
+        self.animation = None
+
+
 class Pos:
     min_val: int
     max_val: int
@@ -23,7 +30,17 @@ class Scale:
         self.scale = scale
 
 
-def render_lines(config: Config, pos_values: PosValues, screen, scale) -> None:
+def move_from_a_to_b(a: tuple[int, int], b: tuple[int, int], drone: Drone) -> tuple[int, int]:
+    factor_of_devision = 50
+
+    x = (a[0] - b[0]) // factor_of_devision
+    y = (a[1] - b[1]) // factor_of_devision
+
+    for _ in range(factor_of_devision):
+        yield (x, y)
+
+
+def render_lines(config: Config, pos_values: PosValues, screen, scale, font: pygame.Font) -> None:
 
     line_thickness = int(0.1 * scale.scale)
     # todo: Make this once and not every time
@@ -38,17 +55,21 @@ def render_lines(config: Config, pos_values: PosValues, screen, scale) -> None:
         end_pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
         end_pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
 
-        if connection.from_zone.metadata.zone.value == "priority" or connection.to_zone.metadata.zone.value == "priority":
-            pygame.draw.line(screen, "gold", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
-        elif connection.from_zone.metadata.zone.value == "blocked" or connection.to_zone.metadata.zone.value == "blocked":
-            pygame.draw.line(screen, "red", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
-        elif connection.from_zone.metadata.zone.value == "restricted" or connection.to_zone.metadata.zone.value == "restricted":
-            pygame.draw.line(screen, "blue", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
-        else:
-            pygame.draw.line(screen, "black", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        # if connection.from_zone.metadata.zone.value == "priority" or connection.to_zone.metadata.zone.value == "priority":
+        #     pygame.draw.line(screen, "gold", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        # elif connection.from_zone.metadata.zone.value == "blocked" or connection.to_zone.metadata.zone.value == "blocked":
+        #     pygame.draw.line(screen, "red", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        # elif connection.from_zone.metadata.zone.value == "restricted" or connection.to_zone.metadata.zone.value == "restricted":
+        #     pygame.draw.line(screen, "blue", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        # else:
+        #     pygame.draw.line(screen, "black", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+
+        pygame.draw.line(screen, "black", [start_pos_x, start_pos_y], [end_pos_x, end_pos_y], line_thickness)
+        img = font.render(f"{len(connection.drones)}/{connection.max_link_capacity}", True, "white", bgcolor="darkslategray")
+        screen.blit(img, img.get_rect(center = ((start_pos_x + end_pos_x) // 2, ((start_pos_y + end_pos_y) // 2))))
 
 
-def render_circle(config, pos_values: PosValues, screen, text_font, scale):
+def render_zone(config, pos_values: PosValues, screen, text_font: pygame.Font, scale):
     circle_radius = 0.3 * scale.scale
 
     for zone in config.zones.values():
@@ -58,64 +79,82 @@ def render_circle(config, pos_values: PosValues, screen, text_font, scale):
         pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
         pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
 
-        pygame.draw.circle(screen, zone.metadata.color.value, [pos_x, pos_y], circle_radius)
+        pygame.draw.circle(screen, zone.metadata.color, [pos_x, pos_y], circle_radius)
 
-        img = text_font.render(str(zone.cost), True, "black")
-        screen.blit(img, [pos_x, pos_y])
-        # print(zone.name, zone.coordinate, pos_x, pos_y)
+        # img = text_font.render(str(zone.cost), True, "black")
+        # screen.blit(img, [pos_x, pos_y])
 
+        img = text_font.render(str(zone.name), True, "white", bgcolor="darkslategray")
+        screen.blit(img, img.get_rect(center = (pos_x, pos_y)))
 
-def visual_logic(config: Config, pos_values: PosValues, screen, text_font, scale):
-
-    # Render lines
-    render_lines(config, pos_values, screen, scale)
-
-    # # Render circle.
-    render_circle(config, pos_values, screen, text_font, scale)
+        img = text_font.render(f"{len(zone.drones)}/{zone.metadata.max_drones}", True, "white", bgcolor="darkslategray")
+        screen.blit(img, img.get_rect(center = (pos_x, int(pos_y + 0.15*scale.scale))))
 
 
-def visual_worker(config: Config):
+def render_drone(drones, pos_values: PosValues, screen, text_font: pygame.Font, scale):
+    rect_size = 0.25 * scale.scale
 
-    pygame.init()
+    for drone in drones:
 
-    screen_resolution = pygame.display.get_desktop_sizes()[0]
-    screen = pygame.display.set_mode(screen_resolution, pygame.RESIZABLE)
+        zone_x, zone_y = drone.pos
 
-    pygame.display.toggle_fullscreen()
-    pygame.display.set_caption("Fly in visual")
+        pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
+        pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
 
-    clock = pygame.time.Clock()
+        pygame.draw.rect(screen, "black", pygame.Rect(pos_x - rect_size // 2, pos_y - rect_size // 2 - 8, rect_size, rect_size))
 
-    # Scale logic
-    pos_values = possition_calc(config)
+        # img = text_font.render(str(zone.cost), True, "black")
+        # screen.blit(img, [pos_x, pos_y])
 
-    while True:
-        # Process player inputs.
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                raise SystemExit
+        img = text_font.render(str(drone.id), True, "white", bgcolor="darkslategray")
+        screen.blit(img, img.get_rect(center = (pos_x, pos_y)))
 
-        # Do logical updates here.
-        key = pygame.key.get_just_pressed()
-        if key[K_ESCAPE]:
-            pygame.event.pump(pygame.QUIT)
-        elif key[K_F11]:
-            pygame.display.toggle_fullscreen()
-
-        screen_resolution = pygame.display.get_window_size()
-
-        scale = scale_calc(pos_values, screen_resolution)
-        text_font = pygame.font.SysFont("Arial", int(0.15 * scale.scale))
+        # img = text_font.render(f"{len(zone.drones)}/{zone.metadata.max_drones}", True, "white", bgcolor="darkslategray")
+        # screen.blit(img, img.get_rect(center = (pos_x, int(pos_y + 0.15*scale.scale))))
 
 
-        screen.fill("white")  # Fill the display with a solid color
+def move_drone(drones, pos_values: PosValues, screen, text_font: pygame.Font, scale):
+    rect_size = 0.25 * scale.scale
 
-        # Render the graphics here.
-        visual_logic(config, pos_values, screen, text_font, scale)
+    for drone in drones:
 
-        pygame.display.update()
-        clock.tick(60)         # wait until next frame (at 60 FPS)
+        if drone.animation is None:
+            drone.animation = move_from_a_to_b()
+
+        zone_x, zone_y = drone.pos
+
+        pos_x = (zone_x + pos_values.x.min_val)*scale.x_scale
+        pos_y = (zone_y + pos_values.y.min_val)*scale.y_scale
+
+        pygame.draw.rect(screen, "black", pygame.Rect(pos_x - rect_size // 2, pos_y - rect_size // 2 - 8, rect_size, rect_size))
+
+        # img = text_font.render(str(zone.cost), True, "black")
+        # screen.blit(img, [pos_x, pos_y])
+
+        img = text_font.render(str(drone.id), True, "white", bgcolor="darkslategray")
+        screen.blit(img, img.get_rect(center = (pos_x, pos_y)))
+
+        # img = text_font.render(f"{len(zone.drones)}/{zone.metadata.max_drones}", True, "white", bgcolor="darkslategray")
+        # screen.blit(img, img.get_rect(center = (pos_x, int(pos_y + 0.15*scale.scale))))
+
+
+def visual_logic(config: Config, pos_values: PosValues, screen, text_font, scale, drones, in_animation, first_time):
+
+    
+
+    # Render lines.
+    render_lines(config, pos_values, screen, scale, text_font)
+
+    # Render circle.
+    render_zone(config, pos_values, screen, text_font, scale)
+
+    # Render drones
+    if not in_animation:
+        render_drone(drones, pos_values, screen, text_font, scale)
+    else:
+        move_drone(drones, pos_values, screen, text_font, scale)
+
+
 
 
 def possition_calc(config: Config) -> PosValues:
@@ -144,9 +183,70 @@ def possition_calc(config: Config) -> PosValues:
 
     return PosValues(x_pos, y_pos)
 
+
 def scale_calc(pos_values: PosValues, screen_resolution):
     x_scale = (screen_resolution[0] // pos_values.x.difference)
     y_scale = (screen_resolution[1] // pos_values.y.difference)
 
     scale = ((screen_resolution[0] + screen_resolution[1]) // (pos_values.x.difference + pos_values.y.difference))
     return Scale(x_scale, y_scale, scale)
+
+
+def visual_worker(config: Config, action_log: list[list[tuple[str, str]]]):
+
+    pygame.init()
+
+    screen_resolution = pygame.display.get_desktop_sizes()[0]
+    screen = pygame.display.set_mode(screen_resolution, pygame.RESIZABLE)
+
+    pygame.display.toggle_fullscreen()
+    pygame.display.set_caption("Fly in visual")
+
+    clock = pygame.time.Clock()
+
+    # Scale logic
+    pos_values = possition_calc(config)
+
+    screen_resolution = pygame.display.get_window_size()
+
+    scale = scale_calc(pos_values, screen_resolution)
+
+    start_pos = (
+        config.start_hub.coordinate[0],
+        config.start_hub.coordinate[1]
+        )
+
+    drones = [Drone(id, start_pos) for id in range(config.nb_drones)]
+
+
+    in_animation = False
+    first_time = True
+
+    while True:
+        # Process player inputs.
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+
+        # Do logical updates here.
+        key = pygame.key.get_just_pressed()
+        if key[K_ESCAPE]:
+            pygame.event.pump(pygame.QUIT)
+        elif key[K_F11]:
+            pygame.display.toggle_fullscreen()
+
+        screen_resolution = pygame.display.get_window_size()
+
+        scale = scale_calc(pos_values, screen_resolution)
+        text_font = pygame.font.SysFont("Arial", int(0.10 * scale.scale))
+
+
+        screen.fill("white")  # Fill the display with a solid color
+
+        # Render the graphics here.
+        visual_logic(config, pos_values, screen, text_font, scale, drones, in_animation, first_time)
+
+        pygame.display.update()
+        # pygame.display.flip()
+        clock.tick(60)         # wait until next frame (at 60 FPS)

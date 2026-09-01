@@ -1,6 +1,10 @@
 from __future__ import annotations
 from pydantic import ValidationError
 from ..parser.config import Config, Connection, Hub, HubMetadata
+import pygame
+from typing import Final, Any
+
+COLOR_URL: Final[str] = "https://www.pygame.org/docs/ref/color_list.html"
 
 
 class FileData:
@@ -27,7 +31,17 @@ class ConfigLoader:
         file = cls._loader(file_name)
         if file is None:
             return None
-        return cls._parser(file, file_name)
+        config = cls._parser(file, file_name)
+
+        # Linking the zones in the connections.
+        for connection in config.connections:
+            connection.from_zone = config.zones[connection.from_zone]
+            connection.to_zone = config.zones[connection.to_zone]
+
+            connection.from_zone.connections.append(connection)
+            connection.to_zone.connections.append(connection)
+
+        return config
 
     @staticmethod
     def _loader(file_name: str) -> list[tuple[list[str], int]] | None:
@@ -159,7 +173,7 @@ class ConfigLoader:
                     start_hub: Hub | None = None,
                     end_hub: Hub | None = None) -> Hub | None:
 
-        metadata: HubMetadata | None = None
+        metadata: HubMetadata | None = HubMetadata()
 
         if start_hub is not None:
             print(
@@ -239,7 +253,7 @@ class ConfigLoader:
             return None
 
     @staticmethod
-    def _metadata_parse(data: FileData, input: str) -> dict[str, str] | None:
+    def _metadata_parse(data: FileData, input: str) -> dict[str, Any] | None:
         arguments = {}
 
         if not input.startswith('[') or not input.endswith(']'):
@@ -264,12 +278,20 @@ class ConfigLoader:
     @classmethod
     def _hub_metadata_parse(cls,
                             data: FileData) -> HubMetadata | None:
-        metadata_arguments: dict[str, str] | None
+        metadata_arguments: dict[str, Any] | None
 
         metadata_arguments = cls._metadata_parse(data, data.line[4])
         if metadata_arguments is None:
             return None
         try:
+            if (selc := metadata_arguments.get("color")) is not None:
+                if metadata_arguments["color"] in pygame.color.THECOLORS:
+                    metadata_arguments["color"] = pygame.color.THECOLORS[selc]
+                else:
+                    print(f"{data.file_name}:{data.line_nb} "
+                          "Error: Color not supported. "
+                          f"Supported colors: {COLOR_URL}")
+                    return None
             return HubMetadata(**metadata_arguments)
         except ValidationError as e:
             for error in e.errors():
