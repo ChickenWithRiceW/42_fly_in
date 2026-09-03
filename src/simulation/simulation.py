@@ -1,36 +1,111 @@
-from ..parser.config import Config, Hub, Drone
-
+from src.models import Config, Hub, Drone, Connection, ZoneType
+from dataclasses import dataclass
 # Forbid this for now
 schedular = {}
 
 
-def add_zone(zone_name: str, list_of_options: list[Hub]) -> None:
-    made_list = list()
-    for hub in list_of_options:
-        made_list.append(list([hub, 0]))
-
-    if schedular.get(zone_name) is None:
-        schedular[zone_name] = made_list
-    else:
-        schedular[zone_name] = [i for i in schedular[zone_name] if i[0] in list_of_options]
+@dataclass
+class ZoneSelection:
+    hub: Hub
+    selected: bool
 
 
-def schedular_func(zone_name: str) -> Hub:
-    if not any([d[1] for d in schedular[zone_name]]):
-        schedular[zone_name][0][1] = 1
-        return schedular[zone_name][0][0]
-    for i, option in enumerate(schedular[zone_name]):
-        if option[1] == 1:
-            schedular[zone_name][i][1] = 0
-            if i == len(schedular[zone_name]) - 1:
-                schedular[zone_name][0][1] = 1
-                return schedular[zone_name][0][0]
+@dataclass
+class ZoneOption:
+    prio: list[ZoneSelection]
+    norm: list[ZoneSelection]
+
+
+class Schedular:
+    def __init__(self):
+        self.data: dict[str, ZoneOption] = {}
+
+
+    def add_zone(self, zone_name: str, list_of_options: list[Hub]) -> None:
+        prio: list[ZoneSelection] = list()
+        norm: list[ZoneSelection] = list()
+
+        for hub in list_of_options:
+            if hub.metadata.zone == ZoneType.PRIORITY:
+                prio.append(ZoneSelection(hub, False))
             else:
-                schedular[zone_name][i + 1][1] = 1
-                return schedular[zone_name][i + 1][0]
+                norm.append(ZoneSelection(hub, False))
+
+        print("ADDING", len(prio), len(norm))
+        options = ZoneOption(prio, norm)
+
+        if self.data.get(zone_name) is None:
+            print("INIT")
+            self.data[zone_name] = options
+        else:
+            print("ADDING/REMOVING")
+            if not self.data[zone_name].prio:
+                print("LIST EMPTY PRIO")
+                self.data[zone_name].prio = prio
+            else:
+                self.data[zone_name].prio = [i for i in prio if i not in self.data[zone_name].prio]
+
+            if not self.data[zone_name].norm:
+                print("LIST EMPTY NORM")
+                self.data[zone_name].norm = norm
+            else:
+                print("LIST NORM")
+                self.data[zone_name].norm = [i for i in norm if i not in self.data[zone_name].norm]
+                print(len(norm))
+                print(len(self.data[zone_name].norm))
 
 
-def hub_logic(drone: Drone) -> bool:
+    def schedular_func(self, zone_name: str) -> Hub:
+        print(len(self.data[zone_name].prio), len(self.data[zone_name].norm))
+        if self.data[zone_name].prio:
+            if not any([d.selected for d in self.data[zone_name].prio]):
+                self.data[zone_name].prio[0].selected = True
+                return self.data[zone_name].prio[0].hub
+            for i, option in enumerate(self.data[zone_name].prio):
+                if option.selected:
+                    self.data[zone_name].prio[i].selected = False
+                    if i == len(self.data[zone_name].prio) - 1:
+                        self.data[zone_name].prio[0].selected = True
+                        return self.data[zone_name].prio[0].hub
+                    else:
+                        self.data[zone_name].prio[i + 1].selected = True
+                        return self.data[zone_name].prio[i + 1].hub
+
+        if self.data[zone_name].norm:
+
+            if not any([d.selected for d in self.data[zone_name].norm]):
+                self.data[zone_name].norm[0].selected = True
+                return self.data[zone_name].norm[0].hub
+
+            for i, option in enumerate(self.data[zone_name].norm):
+                if option.selected:
+                    self.data[zone_name].norm[i].selected = False
+                    if i == len(self.data[zone_name].norm) - 1:
+                        self.data[zone_name].norm[0].selected = True
+                        return self.data[zone_name].norm[0].hub
+                    else:
+                        self.data[zone_name].norm[i + 1].selected = True
+                        return self.data[zone_name].norm[i + 1].hub
+
+
+
+
+    # def schedular_func(self, zone_name: str) -> Hub:
+    #     if not any([d[1] for d in schedular[zone_name]]):
+    #         schedular[zone_name][0][1] = 1
+    #         return schedular[zone_name][0][0]
+    #     for i, option in enumerate(schedular[zone_name]):
+    #         if option[1] == 1:
+    #             schedular[zone_name][i][1] = 0
+    #             if i == len(schedular[zone_name]) - 1:
+    #                 schedular[zone_name][0][1] = 1
+    #                 return schedular[zone_name][0][0]
+    #             else:
+    #                 schedular[zone_name][i + 1][1] = 1
+    #                 return schedular[zone_name][i + 1][0]
+
+
+def hub_logic(drone: Drone, schedular: Schedular) -> bool:
     lowest_cost_zones = []
     is_waiting = True
 
@@ -79,14 +154,14 @@ def hub_logic(drone: Drone) -> bool:
 
     if len(lowest_cost_zones) > 1:
         print(len(lowest_cost_zones))
-        add_zone(drone.position.name, lowest_cost_zones)
-        drone.next_step = schedular_func(drone.position.name)
+        schedular.add_zone(drone.position.name, lowest_cost_zones)
+        drone.next_step = schedular.schedular_func(drone.position.name)
     # print(drone.next_step.name)
 
 
 
 
-def simulation(config: Config) -> list[list[tuple[str, str]]]:
+def simulation(config: Config) -> list[dict[int, Hub | Connection]]:
 
     # Max turns before simulation automatically closes itself
     max_run = float("inf")
@@ -98,15 +173,21 @@ def simulation(config: Config) -> list[list[tuple[str, str]]]:
 
     # Populate the drone list.
     for i in range(config.nb_drones):
-        drones.append(Drone(id=i+1, position=config.start_hub, next_step=config.start_hub))
+        drones.append(Drone(id=i, position=config.start_hub, next_step=config.start_hub))
+
+    config.drones = drones
 
     # Holds information about events.
     action_log = []
 
+    count = 0
+    schedular = Schedular()
+
+
     while simulation_running:
 
         max_run -= 1
-        round = []
+        round = {}
 
         if max_run == 0:
             print("LOG: Simulation was closed by max simulation count")
@@ -117,14 +198,8 @@ def simulation(config: Config) -> list[list[tuple[str, str]]]:
         if not drones:
             return action_log
 
-        # Sort the list so the drones move in order from goal to start.
-        # This is helpful so the drones behind are already aware of the new location of the drones in front.
-        # ! I think this is useless as the drones that started first should always be future ahead anyway.
-        # drones.sort(key=lambda x: x.next_step.cost)
-
-        # Copy so we do not have conflicts in changing the list while we go over it.
-        copy_of_drones = drones.copy()
-        # copy_of_drones = drones
+        if count == config.nb_drones:
+            return action_log
 
         # Clear connection occupations of normal connections.
         # TODO: This should not need a clearing like this it would be better to just do it proper. I dont know how yet tho
@@ -132,9 +207,14 @@ def simulation(config: Config) -> list[list[tuple[str, str]]]:
             # if not connection.from_zone.metadata.zone.value == "restricted" and not connection.to_zone.metadata.zone.value == "restricted":
             connection.drones.clear()
 
-        for drone in copy_of_drones:
+        count = 0
 
-            is_waiting = hub_logic(drone)
+        for drone in drones:
+            if not drone.active:
+                count += 1
+                continue
+
+            is_waiting = hub_logic(drone, schedular)
 
             # This should happen only if there is no move at all the drone could do. Needs changing as well.
             if is_waiting:
@@ -169,12 +249,12 @@ def simulation(config: Config) -> list[list[tuple[str, str]]]:
                         drone.on_connection = True
                         sel_con = con
                         break
-                round.append((f"D{drone.id}", f"{sel_con.from_zone.name}-{sel_con.to_zone.name}"))
+                round.update({drone.id: sel_con})
 
             else:
                 drone.on_connection = False
                 drone.position = drone.next_step
-                round.append((f"D{drone.id}", drone.position.name))
+                round.update({drone.id: drone.position})
 
 
             drone.position.drones[drone.id] = drone
@@ -183,10 +263,9 @@ def simulation(config: Config) -> list[list[tuple[str, str]]]:
 
             if isinstance(drone.position, Hub) and drone.position.name == config.end_hub.name:
                 drone.position.drones.pop(drone.id)
-                drones.remove(drone)
-                print("POPPP")
+                drone.active = False
 
         for connection in config.connections:
-            # if not connection.from_zone.metadata.zone.value == "restricted" and not connection.to_zone.metadata.zone.value == "restricted":
             connection.drones.clear()
-        action_log.append(round)
+        if round:
+            action_log.append(round)

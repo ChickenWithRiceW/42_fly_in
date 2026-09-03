@@ -1,4 +1,4 @@
-from ..parser.config import ZoneType, Config
+from src.models import Config, ZoneType
 import heapq
 
 

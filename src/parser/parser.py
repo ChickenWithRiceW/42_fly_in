@@ -1,6 +1,6 @@
 from __future__ import annotations
+from src.models import Config, Connection, Hub, HubMetadata
 from pydantic import ValidationError
-from ..parser.config import Config, Connection, Hub, HubMetadata
 import pygame
 from typing import Final, Any
 
@@ -198,7 +198,7 @@ class ConfigLoader:
         try:
             hub = Hub(
                 name=data.line[1],
-                coordinate=(data.line[2], data.line[3]),
+                pos=pygame.Vector2(int(data.line[2]), int(data.line[3])),
                 metadata=metadata
             )
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, Generator
 from enum import Enum, IntEnum
 import pygame
 
@@ -28,8 +28,10 @@ class HubMetadata(BaseModel):
 
 
 class Hub(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed='allow')
+
     name: str
-    coordinate: tuple[int, int]
+    pos: pygame.Vector2
     metadata: Optional[HubMetadata] = HubMetadata(
         zone=ZoneType.NORMAL)
     connections: Optional[list[Connection]] = []
@@ -51,6 +53,7 @@ class Config(BaseModel):
     end_hub: Hub
     zones: dict[str, Hub]
     connections: list[Connection]
+    drones: list[Drone] | None = None
 
 
 class Drone(BaseModel):
@@ -58,3 +61,5 @@ class Drone(BaseModel):
     position: Connection | Hub
     next_step: Optional[Connection | Hub | None] = None
     on_connection: bool = False
+    active: bool = True
+    generator: Generator | None = None

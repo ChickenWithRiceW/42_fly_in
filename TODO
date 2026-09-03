@@ -1,0 +1,5 @@
+## Add priorty logic
+
+## ! DONT FORGET TO PARSE COORDINATES FROM CONFIG RIGHT!!!!!!
+
+## SCHEDULAR: Remove all items not provided by adder and if something is already in it dont add on top of it.
