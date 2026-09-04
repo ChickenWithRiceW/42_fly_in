@@ -37,6 +37,8 @@ class Hub(BaseModel):
     connections: Optional[list[Connection]] = []
     cost: Optional[float] = float("inf")
     drones: Optional[dict[int, Drone]] = {}
+    edge_case: Optional[dict[int, Drone]] = {}
+
 
 
 class Connection(BaseModel):
@@ -63,3 +65,4 @@ class Drone(BaseModel):
     on_connection: bool = False
     active: bool = True
     generator: Generator | None = None
+    is_waiting: bool = False
