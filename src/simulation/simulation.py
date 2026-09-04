@@ -87,9 +87,8 @@ def simulation(config: Config) -> list[dict[int, Hub | Connection]]:
             round.update(finalized(drone, config))
 
         action_log.append(round)
-        if len(action_log) == 8:
-            print(len(config.zones["path_c"].edge_case))
-            exit()
+        # if len(action_log) == 7:
+        #     print(len(config.zones["path_c"].edge_case))
 
     for connection in config.connections:
         connection.drones.clear()
@@ -130,17 +129,28 @@ def transit(drone: Drone, schedular, config) -> bool:
     else:
         drone.on_connection = False
         if drone.next_step.metadata.zone == ZoneType.RESTRICTED:
+            # drone.position.edge_case.pop(drone.id, None)
             drone.next_step.drones.pop(drone.id)
 
     return False
 
 
 def finalized(drone: Drone, config: Config) -> dict[int, Hub | Connection]:
+    # if isinstance(drone.position, Hub):
+    #     drone.position.edge_case.pop(drone.id, None)
     if not drone.on_connection:
         clear_connection(drone)
-        if isinstance(drone.position, Connection):
-            drone.position.edge_case.pop(drone.id, None)
         drone.position = drone.next_step
+    else:
+        drone.position.edge_case.pop(drone.id, None)
+        for con in drone.next_step.connections:
+            if con.from_zone.name == drone.position.name and con.to_zone.name == drone.next_step.name:
+                drone.position = con
+                break
+            elif con.to_zone.name == drone.position.name and con.from_zone.name == drone.next_step.name:
+                drone.position = con
+                break
+
     # elif not drone.on_connection and isinstance(drone.next_step, Hub):
     #     clear_connection(drone)
     #     drone.position = drone.next_step
@@ -185,10 +195,10 @@ def clear_connection(drone: Drone):
 def move_to_restricted_middle(drone: Drone) -> dict[int, Connection]:
     for con in drone.next_step.connections:
         if con.from_zone.name == drone.position.name and con.to_zone.name == drone.next_step.name:
-            drone.position = con
+            # drone.position = con
             drone.on_connection = True
             break
         elif con.to_zone.name == drone.position.name and con.from_zone.name == drone.next_step.name:
-            drone.position = con
+            # drone.position = con
             drone.on_connection = True
             break
