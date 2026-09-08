@@ -1,181 +1,172 @@
-from src.models import Config, Hub, Drone, Connection, ZoneType
+from src.models import Config, Node, Drone, Connection, NodeType
 from .schedular import Schedular
+from .helper import _get_opposite_zone_of_con, _get_max_moveable_drones
 
 
-def hub_logic(drone: Drone, schedular: Schedular, config: Config) -> bool:
-    lowest_cost_zones = []
-    is_waiting = True
+class Simulation:
+    @staticmethod
+    def start(config: Config) -> list[dict[int, Node | Connection]]:
+        drones: list[Drone] = []
 
-    if isinstance(drone.position, Connection):
+        # Populate the drone list.
+        for i in range(config.nb_drones):
+            drones.append(Drone(
+                id=i,
+                position=config.start_node,
+                next_step=config.start_node
+                )
+            )
+        config.drones = drones
+
+        action_log = []
+        count = 0
+        schedular = Schedular()
+
+        while count != config.nb_drones:
+            count = 0
+            round = {}
+
+            for drone in drones:
+                if not drone.active:
+                    count += 1
+                    continue
+                transit(drone, schedular, config)
+
+            for drone in drones:
+                if not drone.active or drone.is_waiting:
+                    continue
+                round.update(finalized(drone, config))
+
+            action_log.append(round)
+
+
+        for connection in config.connections:
+            connection.drones.clear()
+        for hub in config.nodes.values():
+            hub.drones.clear()
+        return action_log
+
+
+    def _get_cheapest_available_nodes(drone: Drone) -> list[Node]:
+        lowest_cost_zones = []
+
+        for con in drone.position.connections:
+            zone = _get_opposite_zone_of_con(drone.position, con)
+
+            if len(con.drones) >= con.max_link_capacity:
+                continue
+
+            if len(zone.drones) >= zone.metadata.max_drones:
+                if zone.metadata.zone != NodeType.RESTRICTED:
+                    continue
+                if not restricted_zone_access(zone):
+                    continue
+
+            if not lowest_cost_zones:
+                lowest_cost_zones.append(zone)
+            elif zone.cost < lowest_cost_zones[0].cost:
+                lowest_cost_zones = [zone]
+            elif zone.cost == lowest_cost_zones[0].cost:
+                lowest_cost_zones.append(zone)
+
+        return lowest_cost_zones
+
+
+    def _restricted_zone_access(zone: Node) -> bool:
+        moveable_drones = 0
+        used_capacity = len(zone.drones)
+
+        for o_drone in zone.drones.values():
+            if o_drone.on_connection or o_drone.is_waiting:
+                moveable_drones += 1
+
+        max_moveable_drones = _get_max_moveable_drones(zone)
+        moving_drones = min(max_moveable_drones, moveable_drones)
+
+        if 1 + (used_capacity - moving_drones) <= zone.metadata.max_drones:
+            return True
         return False
 
-    # From current hub check all connections.
-    for con in drone.position.connections:
 
-        # Get opposite zone of connection.
-        if con.from_zone.name == drone.position.name:
-            zone = con.to_zone
+    def _node_selection(drone: Drone, schedular: Schedular, config: Config) -> bool:
+        lowest_cost_nodes = []
+
+        if isinstance(drone.position, Connection):
+            return False
+
+        lowest_cost_nodes = _get_cheapest_available_nodes(drone)
+
+        # Could be changed for capacity maxing.
+        if not lowest_cost_nodes or drone.position.cost <= lowest_cost_nodes[0].cost:
+            return True
+
+        if len(lowest_cost_nodes) == 1:
+            drone.next_step = lowest_cost_nodes[0]
         else:
-            zone = con.from_zone
-
-        # Connection or Hub is already at max capacity ignore connection/zone.
-        if len(con.drones) >= con.max_link_capacity:
-            continue
-        if len(zone.drones) >= zone.metadata.max_drones:
-            continue
-
-        # if len([drones for drones in zone.edge_case.values() if drones.next_step.metadata.zone == ZoneType.RESTRICTED]) == zone.metadata.max_drones:
-        #     # print("AHHHHHHHHHHH")
-        #     # exit()
-        #     continue
-
-        # Set first zone as reference
-        if not lowest_cost_zones:
-            lowest_cost_zones.append(zone)
-
-        # If found zone with lower cost clear list and insert new zone
-        elif zone.cost < lowest_cost_zones[0].cost:
-            lowest_cost_zones = [zone]
-        # If same cost add to list so we got options to pick from.
-        elif zone.cost == lowest_cost_zones[0].cost:
-            lowest_cost_zones.append(zone)
+            schedular.add_node(drone.position.name, lowest_cost_nodes)
+            drone.next_step = config.nodes[schedular.retrieve_node(drone.position.name)]
+        return False
 
 
-        is_waiting = False
+    def _transit(drone: Drone, schedular, config) -> bool:
+        drone.is_waiting = node_selection(drone, schedular, config)
 
-    if is_waiting or drone.position.cost <= lowest_cost_zones[0].cost:
-        return True
+        if drone.is_waiting:
+            return
 
-    if len(lowest_cost_zones) == 1:
-        drone.next_step = lowest_cost_zones[0]
-    else:
-        schedular.add_zone(drone.position.name, lowest_cost_zones)
-        drone.next_step = config.zones[schedular.schedular_func(drone.position.name)]
-    return is_waiting
+        # Remove occupation of zone before.
+        if isinstance(drone.position, Node):
+            drone.position.drones.pop(drone.id, None)
 
+        # This will occupy the connection between current pos and next pos
+        occupy_connection(drone)
 
-def simulation(config: Config) -> list[dict[int, Hub | Connection]]:
-
-    drones: list[Drone] = []
-
-    # Populate the drone list.
-    for i in range(config.nb_drones):
-        drones.append(Drone(id=i, position=config.start_hub, next_step=config.start_hub))
-
-    config.drones = drones
-
-    # Holds information about events.
-    action_log = []
-
-    count = 0
-    schedular = Schedular()
-
-    while count != config.nb_drones:
-        count = 0
-        round = {}
-
-        for drone in drones:
-            if not drone.active:
-                count += 1
-                continue
-            transit(drone, schedular, config)
-
-        for drone in drones:
-            if not drone.active:
-                continue
-
-            round.update(finalized(drone, config))
-
-        action_log.append(round)
-        # if len(action_log) == 7:
-        #     print(len(config.zones["path_c"].edge_case))
-
-    for connection in config.connections:
-        connection.drones.clear()
-    for hub in config.zones.values():
-        hub.drones.clear()
-    return action_log
+        drone.next_step.drones[drone.id] = drone
 
 
+    def _finalized(drone: Drone, config: Config) -> dict[int, Node | Connection]:
+        if isinstance(drone.position, Node) and drone.next_step.metadata.zone == NodeType.RESTRICTED:
+            drone.on_connection = True
+            con = get_connection_to_next_step(drone)
 
-def transit(drone: Drone, schedular, config) -> bool:
-    drone.is_waiting = hub_logic(drone, schedular, config)
+            drone.position = con
+        else:
+            drone.on_connection = False
+            clear_connection(drone)
+            drone.position = drone.next_step
 
-    if drone.is_waiting:
-        print(drone.id, "is waiting")
-        return
+        # If reached goal drone deactivates.
+        if drone.position == config.end_node:
+            drone.position.drones.pop(drone.id, None)
+            drone.active = False
 
-    # Remove occupation of zone before.
-    if isinstance(drone.position, Hub):
-        drone.position.drones.pop(drone.id, None)
-
-    # This will occupy the connection between current pos and next pos
-    occupy_connection(drone)
-
-    drone.next_step.drones[drone.id] = drone
-    # ---------------------------------- THIS IS ALL THE LOGIC NEEDED FROM A TO B
-
-
+        return {drone.id: drone.position}
 
 
-def finalized(drone: Drone, config: Config) -> dict[int, Hub | Connection]:
-    if isinstance(drone.position, Hub) and drone.next_step.metadata.zone == ZoneType.RESTRICTED:
+    def _occupy_connection(drone: Drone):
+        if isinstance(drone.position, Connection):
+            drone.position.drones[drone.id] = drone
+            return
+
+        # From current pos to next pos
+        con = get_connection_to_next_step(drone)
+        con.drones[drone.id] = drone
+
+
+    def _clear_connection(drone: Drone):
+        if isinstance(drone.position, Connection):
+            drone.position.drones.pop(drone.id, None)
+            return
+        # From current pos to next pos
+        con = get_connection_to_next_step(drone)
+        con.drones.pop(drone.id)
+
+
+    def _get_connection_to_next_step(drone: Drone) -> None:
         for con in drone.next_step.connections:
-            if con.from_zone.name == drone.position.name and con.to_zone.name == drone.next_step.name:
-                drone.position = con
-                break
-            elif con.to_zone.name == drone.position.name and con.from_zone.name == drone.next_step.name:
-                drone.position = con
-                break
-    else:
-        clear_connection(drone)
-        drone.position = drone.next_step
-
-    # If reached goal drone deactivates.
-    if drone.position == config.end_hub:
-        drone.position.drones.pop(drone.id, None)
-        drone.active = False
-
-    return {drone.id: drone.position}
-
-
-
-
-def occupy_connection(drone: Drone):
-    if isinstance(drone.position, Connection):
-        drone.position.drones[drone.id] = drone
-        return
-
-    # From current pos to next pos
-    for con in drone.next_step.connections:
-        if drone.position.name == con.from_zone.name and drone.next_step.name == con.to_zone.name:
-            con.drones[drone.id] = drone
-            break
-        elif drone.position.name == con.to_zone.name and drone.next_step.name == con.from_zone.name:
-            con.drones[drone.id] = drone
-            break
-
-def clear_connection(drone: Drone):
-    if isinstance(drone.position, Connection):
-        drone.position.drones.pop(drone.id, None)
-        return
-    # From current pos to next pos
-    for con in drone.next_step.connections:
-        if drone.position.name == con.from_zone.name and drone.next_step.name == con.to_zone.name:
-            con.drones.pop(drone.id)
-            break
-        elif drone.position.name == con.to_zone.name and drone.next_step.name == con.from_zone.name:
-            con.drones.pop(drone.id)
-            break
-
-
-def move_to_restricted_middle(drone: Drone) -> dict[int, Connection]:
-    for con in drone.next_step.connections:
-        if con.from_zone.name == drone.position.name and con.to_zone.name == drone.next_step.name:
-            # drone.position = con
-            drone.on_connection = True
-            break
-        elif con.to_zone.name == drone.position.name and con.from_zone.name == drone.next_step.name:
-            # drone.position = con
-            drone.on_connection = True
-            break
+            if drone.position.name == con.from_node.name \
+                    and drone.next_step.name == con.to_node.name:
+                return con
+            elif drone.position.name == con.to_node.name \
+                    and drone.next_step.name == con.from_node.name:
+                return con

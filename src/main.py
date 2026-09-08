@@ -22,7 +22,7 @@ if __name__ == "__main__":
             turn_list = []
             for id, value in turn.items():
                 if isinstance(value, Connection):
-                    turn_list.append(f"D{id + 1}-{value.from_zone.name}-{value.to_zone.name}")
+                    turn_list.append(f"D{id + 1}-{value.from_node.name}-{value.to_node.name}")
                 else:
                     turn_list.append(f"D{id + 1}-{value.name}")
             print(*turn_list, file=file)

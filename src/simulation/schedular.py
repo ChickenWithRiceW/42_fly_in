@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.models import Hub, ZoneType
+from src.models import Node, NodeType
 
 
 @dataclass
@@ -12,50 +12,43 @@ class Schedular:
     def __init__(self):
         self.data: dict[str, ZoneOption] = {}
 
+    def _proper_thing(self, selected_queue: dict, queue_type: dict):
+        if not selected_queue:
+            selected_queue = queue_type
+        else:
+            for key, value in selected_queue.items():
+                if key not in queue_type.keys():
+                    continue
+                queue_type[key] = value
 
-    def add_zone(self, zone_name: str, list_of_options: list[Hub]):
+            selected_queue = queue_type
+
+
+    def _adding_thing(self, zone_name: str, options: ZoneOption):
+        self._proper_thing(self.data[zone_name].prio, options.prio)
+
+        self._proper_thing(self.data[zone_name].norm, options.norm)
+
+    def add_node(self, zone_name: str, list_of_options: list[Node]):
         prio = {}
         norm = {}
 
         for hub in list_of_options:
-            if hub.metadata.zone == ZoneType.PRIORITY:
+            if hub.metadata.zone == NodeType.PRIORITY:
                 prio[hub.name] = False
             else:
                 norm[hub.name] = False
 
-        print("ADDING", len(prio), len(norm))
         options = ZoneOption(prio, norm)
 
         if self.data.get(zone_name) is None:
-            print("INIT")
             self.data[zone_name] = options
         else:
-            print("ADDING/REMOVING")
-            if not self.data[zone_name].prio:
-                print("LIST EMPTY PRIO")
-                self.data[zone_name].prio = prio
-            else:
-                for key, value in self.data[zone_name].prio.items():
-                    if key not in prio.keys():
-                        continue
-                    prio[key] = value
-
-                self.data[zone_name].prio = prio
-
-            if not self.data[zone_name].norm:
-                print("LIST EMPTY NORM")
-                self.data[zone_name].norm = norm
-            else:
-                for key, value in self.data[zone_name].norm.items():
-                    if key not in norm.keys():
-                        continue
-                    norm[key] = value
-
-                self.data[zone_name].norm = norm
+            _adding_thing(zone_name, options)
 
 
 
-    def schedular_func(self, zone_name: str) -> Hub:
+    def retrieve_node(self, zone_name: str) -> Node:
         print(len(self.data[zone_name].prio), len(self.data[zone_name].norm))
 
 
@@ -94,3 +87,7 @@ class Schedular:
                     else:
                         self.data[zone_name].norm[tmp[i + 1]] = True
                         return tmp[i + 1]
+
+    def get_node(self, zone_name: str, list_of_options: list[Node]) -> Node:
+        self.add_node(zone_name, list_of_options)
+        return self.retrieve_node(zone_name)

@@ -12,38 +12,37 @@ class Direction(IntEnum):
     NONE = 3
 
 
-class ZoneType(Enum):
+class NodeType(Enum):
     NORMAL = "normal"
     RESTRICTED = "restricted"
     PRIORITY = "priority"
     BLOCKED = "blocked"
 
 
-class HubMetadata(BaseModel):
+class NodeMetadata(BaseModel):
     model_config = ConfigDict(extra='forbid')
     color: Optional[tuple[int, int, int, int]] = Field(
         default=pygame.color.THECOLORS["black"])
     max_drones: Optional[int] = Field(ge=1, default=1)
-    zone: Optional[ZoneType] = Field(default=ZoneType.NORMAL)
+    zone: Optional[NodeType] = Field(default=NodeType.NORMAL)
 
 
-class Hub(BaseModel):
+class Node(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed='allow')
 
     name: str
     pos: pygame.Vector2
-    metadata: Optional[HubMetadata] = HubMetadata(
-        zone=ZoneType.NORMAL)
+    metadata: Optional[NodeMetadata] = NodeMetadata(
+        zone=NodeType.NORMAL)
     connections: Optional[list[Connection]] = []
     cost: Optional[float] = float("inf")
     drones: Optional[dict[int, Drone]] = {}
     edge_case: Optional[dict[int, Drone]] = {}
 
 
-
 class Connection(BaseModel):
-    from_zone: str | Hub
-    to_zone: str | Hub
+    from_node: str | Node
+    to_node: str | Node
     max_link_capacity: Optional[int] = Field(ge=0, default=1)
     direction: Optional[Direction] = Direction.NONE
     drones: Optional[dict[int, Drone]] = {}
@@ -51,17 +50,17 @@ class Connection(BaseModel):
 
 class Config(BaseModel):
     nb_drones: int
-    start_hub: Hub
-    end_hub: Hub
-    zones: dict[str, Hub]
+    start_node: Node
+    end_node: Node
+    nodes: dict[str, Node]
     connections: list[Connection]
     drones: list[Drone] | None = None
 
 
 class Drone(BaseModel):
     id: int
-    position: Connection | Hub
-    next_step: Optional[Connection | Hub | None] = None
+    position: Connection | Node
+    next_step: Optional[Connection | Node | None] = None
     on_connection: bool = False
     active: bool = True
     generator: Generator | None = None

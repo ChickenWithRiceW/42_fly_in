@@ -1,4 +1,4 @@
-from src.models import Config, ZoneType
+from src.models import Config, NodeType
 import heapq
 
 
@@ -11,15 +11,15 @@ def pre_calculate_map(config: Config) -> bool:
     Returns:
         bool: Returns true when map has a solution and false if not.
     """
-    adj = config.zones
+    adj = config.nodes
 
-    src = config.end_hub.name
+    src = config.end_node.name
 
     # Min-heap (priority queue) storing pairs of (distance, node)
     pq: list[tuple[int, str]] = []
 
     # Distance from source to itself is 0
-    config.end_hub.cost = 0
+    config.end_node.cost = 0
     heapq.heappush(pq, (0, src))
 
     # Process the queue until all reachable vertices are finalized
@@ -27,30 +27,30 @@ def pre_calculate_map(config: Config) -> bool:
         d, u = heapq.heappop(pq)
 
         # If this distance not the latest shortest one, skip it
-        if d > config.zones[u].cost:
+        if d > config.nodes[u].cost:
             continue
 
         # Explore all neighbors of the current vertex
         for con in adj[u].connections:
-            if con.from_zone == adj[u]:
-                hub = con.to_zone
+            if con.from_node == adj[u]:
+                node = con.to_node
             else:
-                hub = con.from_zone
+                node = con.from_node
 
-            if hub.metadata.zone == ZoneType.RESTRICTED:
+            if node.metadata.zone == NodeType.RESTRICTED:
                 w = 2.0
-            elif hub.metadata.zone == ZoneType.BLOCKED:
+            elif node.metadata.zone == NodeType.BLOCKED:
                 w = float("inf")
             else:
                 w = 1.0
 
             # If we found a shorter path to v through u, update it
-            if config.zones[u].cost + w < config.zones[hub.name].cost:
-                config.zones[hub.name].cost = config.zones[u].cost + w
-                heapq.heappush(pq, (config.zones[hub.name].cost, hub.name))
+            if config.nodes[u].cost + w < config.nodes[node.name].cost:
+                config.nodes[node.name].cost = config.nodes[u].cost + w
+                heapq.heappush(pq, (config.nodes[node.name].cost, node.name))
 
-    if config.start_hub.cost == float("inf") \
-            or config.end_hub.metadata.zone == ZoneType.BLOCKED:
+    if config.start_node.cost == float("inf") \
+            or config.end_node.metadata.zone == NodeType.BLOCKED:
         print("Error: Map is not solvable")
         return False
     else:

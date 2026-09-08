@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.models import Config, Connection, Hub, HubMetadata
+from src.models import Config, Connection, Node, NodeMetadata
 from pydantic import ValidationError
 import pygame
 from typing import Final, Any
@@ -11,12 +11,12 @@ class FileData:
     def __init__(
         self,
         file_name: str,
-        hubs: dict[str, Hub],
+        nodes: dict[str, Node],
         connections: list[Connection]
     ) -> None:
 
         self.file_name: str = file_name
-        self.hubs: dict[str, Hub] = hubs
+        self.nodes: dict[str, Node] = nodes
         self.connections: list[Connection] = connections
         self.line: list[str]
         self.line_nb: int
@@ -85,13 +85,13 @@ class ConfigLoader:
                 occurred
         """
         nb_drones: int | None = None
-        start_hub: Hub | None = None
-        end_hub: Hub | None = None
+        start_node: Node | None = None
+        end_node: Node | None = None
 
-        hubs: dict[str, Hub] = {}
+        nodes: dict[str, Node] = {}
         connections: list[Connection] = []
 
-        data = FileData(file_name, hubs, connections)
+        data = FileData(file_name, nodes, connections)
 
         # Index 0 is the key name.
         for line, line_nb in loaded_file:
@@ -104,25 +104,26 @@ class ConfigLoader:
                         return None
 
                 case "start_hub:":
-                    if not (start_hub := cls._hub_parser(data, start_hub)):
+                    if not (start_node := cls._hub_parser(data, start_node)):
                         return None
-                    hubs.update({start_hub.name: start_hub})
+                    nodes.update({start_node.name: start_node})
 
                 case "end_hub:":
-                    if not (end_hub := cls._hub_parser(data, end_hub=end_hub)):
+                    if not (end_node := cls._hub_parser(
+                            data, end_node=end_node)):
                         return None
-                    hubs.update({end_hub.name: end_hub})
+                    nodes.update({end_node.name: end_node})
 
                 case "hub:":
-                    if not (hub := cls._hub_parser(data)):
+                    if not (node := cls._hub_parser(data)):
                         return None
-                    hubs.update({hub.name: hub})
+                    nodes.update({node.name: node})
 
                 case "connection:":
                     if not (connection := cls._connection_parser(data)):
                         return None
 
-                    cls._connect_hub_to_con(connection, connections, hubs)
+                    cls._connect_hub_to_con(connection, connections, nodes)
 
                 case _:
                     if line[0]:
@@ -134,9 +135,9 @@ class ConfigLoader:
         try:
             return Config(
                 nb_drones=nb_drones,
-                start_hub=start_hub,
-                end_hub=end_hub,
-                zones=hubs,
+                start_node=start_node,
+                end_node=end_node,
+                nodes=nodes,
                 connections=connections
             )
         except ValidationError as e:
@@ -168,19 +169,19 @@ class ConfigLoader:
     def _hub_parser(
         cls,
         data: FileData,
-        start_hub: Hub | None = None,
-        end_hub: Hub | None = None
-    ) -> Hub | None:
+        start_node: Node | None = None,
+        end_node: Node | None = None
+    ) -> Node | None:
 
-        metadata: HubMetadata | None = HubMetadata()
+        metadata: NodeMetadata | None = NodeMetadata()
 
-        if start_hub is not None:
+        if start_node is not None:
             print(
                 f"{data.file_name}:{data.line_nb} "
                 "Error: start_hub already defined")
             return None
 
-        if end_hub is not None:
+        if end_node is not None:
             print(
                 f"{data.file_name}:{data.line_nb} "
                 "Error: end_hub already defined")
@@ -196,13 +197,13 @@ class ConfigLoader:
             if metadata is None:
                 return None
         try:
-            hub = Hub(
+            hub = Node(
                 name=data.line[1],
                 pos=pygame.Vector2(int(data.line[2]), int(data.line[3])),
                 metadata=metadata
             )
 
-            if hub.name in data.hubs:
+            if hub.name in data.nodes:
                 print(f"{data.file_name}:{data.line_nb} "
                       "Error: Zone duplicate found")
                 return None
@@ -235,8 +236,8 @@ class ConfigLoader:
             return None
         try:
             connection = Connection(
-                from_zone=split[0],
-                to_zone=split[1],
+                from_node=split[0],
+                to_node=split[1],
                 **max_link_capacity)
 
             if not cls._connection_parser_helper(data, connection):
@@ -278,7 +279,7 @@ class ConfigLoader:
     def _hub_metadata_parse(
         cls,
         data: FileData
-    ) -> HubMetadata | None:
+    ) -> NodeMetadata | None:
 
         metadata_arguments: dict[str, Any] | None
 
@@ -294,7 +295,7 @@ class ConfigLoader:
                           "Error: Color not supported. "
                           f"Supported colors: {COLOR_URL}")
                     return None
-            return HubMetadata(**metadata_arguments)
+            return NodeMetadata(**metadata_arguments)
         except ValidationError as e:
             for error in e.errors():
                 if error["type"] == "extra_forbidden":
@@ -310,24 +311,24 @@ class ConfigLoader:
 
     @staticmethod
     def _connection_parser_helper(data: FileData, sel: Connection) -> bool:
-        if sel.from_zone not in data.hubs \
-                or sel.to_zone not in data.hubs:
+        if sel.from_node not in data.nodes \
+                or sel.to_node not in data.nodes:
             print(f"{data.file_name}:{data.line_nb} "
                   "Error: Connection point not found")
             return False
 
-        if sel.from_zone == sel.to_zone:
+        if sel.from_node == sel.to_node:
             print(f"{data.file_name}:{data.line_nb} "
                   "Error: Connection can't connect to itself "
-                  f"'{sel.from_zone}-{sel.from_zone}'")
+                  f"'{sel.from_node}-{sel.from_node}'")
             return False
 
         for con in data.connections:
-            if {sel.from_zone, sel.to_zone} \
-                    == {con.from_zone.name, con.to_zone.name}:
+            if {sel.from_node, sel.to_node} \
+                    == {con.from_node.name, con.to_node.name}:
                 print(f"{data.file_name}:{data.line_nb} "
                       "Error: Duplicated connection found "
-                      f"'{sel.from_zone}-{sel.to_zone}'")
+                      f"'{sel.from_node}-{sel.to_node}'")
                 return False
         return True
 
@@ -335,12 +336,12 @@ class ConfigLoader:
     def _connect_hub_to_con(
         connection: Connection,
         connections: list[Connection],
-        hubs: dict[str, Hub]
+        hubs: dict[str, Node]
     ) -> None:
 
-        connection.from_zone = hubs[connection.from_zone]
-        connection.to_zone = hubs[connection.to_zone]
+        connection.from_node = hubs[connection.from_node]
+        connection.to_node = hubs[connection.to_node]
 
-        connection.from_zone.connections.append(connection)
-        connection.to_zone.connections.append(connection)
+        connection.from_node.connections.append(connection)
+        connection.to_node.connections.append(connection)
         connections.append(connection)

@@ -1,3 +1,3 @@
-from .map import Config, Connection, Hub, ZoneType, HubMetadata, Drone
+from .map import Config, Connection, Node, NodeType, NodeMetadata, Drone
 
-__all__ = ["Config", "Connection", "Hub", "ZoneType", "HubMetadata", "Drone"]
+__all__ = ["Config", "Connection", "Node", "NodeType", "NodeMetadata", "Drone"]

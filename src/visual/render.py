@@ -1,11 +1,11 @@
 from .models import Scale, Pos_values, Vector2
-from src.models import Config, Hub, Connection
+from src.models import Config, Node, Connection
 import pygame
 from typing import Generator
 
 
 class Render:
-    def __init__(self, config: Config, scale: Scale, pos_values: Pos_values, screen, action_log: list[dict[int, Hub | Connection]]):
+    def __init__(self, config: Config, scale: Scale, pos_values: Pos_values, screen, action_log: list[dict[int, Node | Connection]]):
         self.config = config
         self.scale = scale
         self.pos_values = pos_values
@@ -15,17 +15,17 @@ class Render:
         self.index = 0
 
     @staticmethod
-    def get_pos(current_pos: Hub | Connection, next_pos: Hub | Connection) -> tuple[Vector2, Vector2]:
+    def get_pos(current_pos: Node | Connection, next_pos: Node | Connection) -> tuple[Vector2, Vector2]:
         current_pos_res = None
         next_pos_res = None
         if isinstance(current_pos, Connection):
-            current_pos_res = (current_pos.from_zone.pos.elementwise() + current_pos.to_zone.pos) / 2
-        elif isinstance(current_pos, Hub):
+            current_pos_res = (current_pos.from_node.pos.elementwise() + current_pos.to_node.pos) / 2
+        elif isinstance(current_pos, Node):
             current_pos_res = current_pos.pos
 
         if isinstance(next_pos, Connection):
-            next_pos_res = (next_pos.from_zone.pos.elementwise() + next_pos.to_zone.pos) / 2
-        elif isinstance(next_pos, Hub):
+            next_pos_res = (next_pos.from_node.pos.elementwise() + next_pos.to_node.pos) / 2
+        elif isinstance(next_pos, Node):
             next_pos_res = next_pos.pos
         return (current_pos_res, next_pos_res)
 
@@ -66,8 +66,8 @@ class Render:
         line_thickness = int(0.1 * self.scale.full_scale)
 
         for con in self.config.connections:
-            a = con.from_zone.pos.elementwise() * self.scale.pos
-            b = con.to_zone.pos.elementwise() * self.scale.pos
+            a = con.from_node.pos.elementwise() * self.scale.pos
+            b = con.to_node.pos.elementwise() * self.scale.pos
 
             pygame.draw.line(self.screen, "black", a, b, line_thickness)
 
@@ -82,7 +82,7 @@ class Render:
     def _render_zone(self):
         circle_radius = 0.3 * self.scale.full_scale
 
-        for zone in self.config.zones.values():
+        for zone in self.config.nodes.values():
 
             a = zone.pos.elementwise() * self.scale.pos
 
@@ -121,7 +121,7 @@ class Render:
         content = None
 
         for drone in self.config.drones:
-            if drone.position == self.config.end_hub:
+            if drone.position == self.config.end_node:
                 continue
             # pos = (0, 0)
             # offset = False
@@ -153,8 +153,8 @@ class Render:
 
                     # TODO: get connection and occupy it.
                     for con in self.config.connections:
-                        if drone.position == con.to_zone and drone.next_step == con.from_zone \
-                            or drone.next_step == con.to_zone and drone.position == con.from_zone:
+                        if drone.position == con.to_node and drone.next_step == con.from_node \
+                            or drone.next_step == con.to_node and drone.position == con.from_node:
                             con.drones[drone.id] = drone
 
                 except StopIteration:
@@ -162,8 +162,8 @@ class Render:
                     print("Drone animation is finished")
                     # TODO: Get connection and clear it.
                     for con in self.config.connections:
-                        if drone.position == con.to_zone and drone.next_step == con.from_zone \
-                            or drone.next_step == con.to_zone and drone.position == con.from_zone:
+                        if drone.position == con.to_node and drone.next_step == con.from_node \
+                            or drone.next_step == con.to_node and drone.position == con.from_node:
                             con.drones.pop(drone.id)
                     drone.position = drone.next_step
                     drone.position.drones[drone.id] = drone
@@ -197,7 +197,7 @@ class Render:
         if self.index == -1 or self.index == len(self.action_log):
             self.index = 0
             for drone in self.config.drones:
-                self.config.start_hub.drones[drone.id] = drone
-                drone.position = self.config.start_hub
-                drone.next_step = self.config.start_hub
+                self.config.start_node.drones[drone.id] = drone
+                drone.position = self.config.start_node
+                drone.next_step = self.config.start_node
 
