@@ -234,15 +234,19 @@ class ConfigLoader:
             max_link_capacity = cls._metadata_parse(data, data.line[2])
         if max_link_capacity is None:
             return None
+
+        if not cls._connection_parser_helper(
+                data,
+                from_node=split[0],
+                to_node=split[1]
+        ):
+            return None
+
         try:
             connection = Connection(
-                from_node=split[0],
-                to_node=split[1],
+                from_node=data.nodes[split[0]],
+                to_node=data.nodes[split[1]],
                 **max_link_capacity)
-
-            if not cls._connection_parser_helper(data, connection):
-                return None
-
             return connection
 
         except ValidationError as e:
@@ -310,25 +314,29 @@ class ConfigLoader:
             return None
 
     @staticmethod
-    def _connection_parser_helper(data: FileData, sel: Connection) -> bool:
-        if sel.from_node not in data.nodes \
-                or sel.to_node not in data.nodes:
+    def _connection_parser_helper(
+        data: FileData,
+        from_node: str,
+        to_node: str
+    ) -> bool:
+        if from_node not in data.nodes \
+                or to_node not in data.nodes:
             print(f"{data.file_name}:{data.line_nb} "
                   "Error: Connection point not found")
             return False
 
-        if sel.from_node == sel.to_node:
+        if from_node == to_node:
             print(f"{data.file_name}:{data.line_nb} "
                   "Error: Connection can't connect to itself "
-                  f"'{sel.from_node}-{sel.from_node}'")
+                  f"'{from_node}-{from_node}'")
             return False
 
         for con in data.connections:
-            if {sel.from_node, sel.to_node} \
+            if {from_node, to_node} \
                     == {con.from_node.name, con.to_node.name}:
                 print(f"{data.file_name}:{data.line_nb} "
                       "Error: Duplicated connection found "
-                      f"'{sel.from_node}-{sel.to_node}'")
+                      f"'{from_node}-{to_node}'")
                 return False
         return True
 
@@ -339,8 +347,8 @@ class ConfigLoader:
         hubs: dict[str, Node]
     ) -> None:
 
-        connection.from_node = hubs[connection.from_node]
-        connection.to_node = hubs[connection.to_node]
+        connection.from_node = hubs[connection.from_node.name]
+        connection.to_node = hubs[connection.to_node.name]
 
         connection.from_node.connections.append(connection)
         connection.to_node.connections.append(connection)

@@ -1,6 +1,7 @@
 from .models import Scale, Pos_values, Vector2
-from src.models import Config, Node, Connection
+from src.models import Config, Node, Connection, NodeType
 import pygame
+import pygame.gfxdraw
 from typing import Generator
 
 
@@ -15,7 +16,11 @@ class Render:
         self.index = 0
 
     @staticmethod
-    def get_pos(current_pos: Node | Connection, next_pos: Node | Connection) -> tuple[Vector2, Vector2]:
+    def get_pos(
+        current_pos: Node | Connection,
+        next_pos: Node | Connection
+    ) -> tuple[Vector2, Vector2]:
+
         current_pos_res = None
         next_pos_res = None
         if isinstance(current_pos, Connection):
@@ -69,7 +74,7 @@ class Render:
             a = con.from_node.pos.elementwise() * self.scale.pos
             b = con.to_node.pos.elementwise() * self.scale.pos
 
-            pygame.draw.line(self.screen, "black", a, b, line_thickness)
+            pygame.draw.aaline(self.screen, "black", a, b, line_thickness)
 
             img = self.font.render(
                 f"{len(con.drones)}/{con.max_link_capacity}",
@@ -85,12 +90,18 @@ class Render:
         for zone in self.config.nodes.values():
 
             a = zone.pos.elementwise() * self.scale.pos
+            pygame.draw.circle(
+                self.screen, self._get_zone_type_color(zone.metadata.zone), a, circle_radius)
 
             pygame.draw.circle(
-                self.screen, zone.metadata.color, a, circle_radius)
+                self.screen, zone.metadata.color, a, circle_radius - 10)
+
+            # pygame.gfxdraw.aacircle(
+            #     self.screen, int(a.x) , int(a.x), int(circle_radius), self._get_zone_type_color(zone.metadata.zone))
+
 
             img = self.font.render(str(zone.cost), True, "black")
-            self.screen.blit(img, a)
+            self.screen.blit(img, img.get_rect(center=a.elementwise() + Vector2(0, -circle_radius + 40)))
 
             # Display zone name
             img = self.font.render(
@@ -201,3 +212,14 @@ class Render:
                 drone.position = self.config.start_node
                 drone.next_step = self.config.start_node
 
+    @staticmethod
+    def _get_zone_type_color(zone_type: NodeType) -> pygame.color.THECOLORS:
+        match zone_type:
+            case NodeType.NORMAL:
+                return pygame.color.THECOLORS["black"]
+            case NodeType.PRIORITY:
+                return pygame.color.THECOLORS["yellow"]
+            case NodeType.BLOCKED:
+                return pygame.color.THECOLORS["red"]
+            case NodeType.RESTRICTED:
+                return pygame.color.THECOLORS["orange"]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Generator
+from typing import Generator
 from enum import Enum, IntEnum
 import pygame
 
@@ -21,31 +21,30 @@ class NodeType(Enum):
 
 class NodeMetadata(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    color: Optional[tuple[int, int, int, int]] = Field(
+    color: tuple[int, int, int, int] = Field(
         default=pygame.color.THECOLORS["black"])
-    max_drones: Optional[int] = Field(ge=1, default=1)
-    zone: Optional[NodeType] = Field(default=NodeType.NORMAL)
+    max_drones: int = Field(ge=1, default=1)
+    zone: NodeType = Field(default=NodeType.NORMAL)
 
 
 class Node(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed='allow')
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
     pos: pygame.Vector2
-    metadata: Optional[NodeMetadata] = NodeMetadata(
+    metadata: NodeMetadata = NodeMetadata(
         zone=NodeType.NORMAL)
-    connections: Optional[list[Connection]] = []
-    cost: Optional[float] = float("inf")
-    drones: Optional[dict[int, Drone]] = {}
-    edge_case: Optional[dict[int, Drone]] = {}
+    connections: list[Connection] = []
+    cost: float = float("inf")
+    drones: dict[int, Drone] = {}
 
 
 class Connection(BaseModel):
-    from_node: str | Node
-    to_node: str | Node
-    max_link_capacity: Optional[int] = Field(ge=0, default=1)
-    direction: Optional[Direction] = Direction.NONE
-    drones: Optional[dict[int, Drone]] = {}
+    from_node: Node
+    to_node: Node
+    max_link_capacity: int = Field(ge=1, default=1)
+    direction: Direction = Direction.NONE
+    drones: dict[int, Drone] = {}
 
 
 class Config(BaseModel):
@@ -60,7 +59,7 @@ class Config(BaseModel):
 class Drone(BaseModel):
     id: int
     position: Connection | Node
-    next_step: Optional[Connection | Node | None] = None
+    next_step: Node
     on_connection: bool = False
     active: bool = True
     generator: Generator | None = None

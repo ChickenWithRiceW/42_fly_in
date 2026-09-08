@@ -2,7 +2,7 @@ from .parser import ConfigLoader
 from src.models import Connection
 from .map.map import pre_calculate_map
 from .visual.visual import visual_worker
-from .simulation.simulation import simulation
+from .simulation.simulation import Simulation
 
 
 if __name__ == "__main__":
@@ -12,8 +12,7 @@ if __name__ == "__main__":
 
     pre_calculate_map(config)
 
-
-    ls = simulation(config)
+    ls = Simulation.start(config)
 
     with open("output.log", mode='w') as file:
         for turn in ls:

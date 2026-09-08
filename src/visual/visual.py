@@ -2,7 +2,6 @@ import pygame
 import pygame.locals
 
 from ..parser import Config
-from typing import Generator
 
 from .models import Pos_values, Scale, Vector2
 from .render import Render

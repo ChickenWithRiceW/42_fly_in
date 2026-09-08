@@ -4,15 +4,19 @@ from src.models import Node, NodeType
 
 @dataclass
 class ZoneOption:
-    prio: dict
-    norm: dict
+    prio: dict[str, bool]
+    norm: dict[str, bool]
 
 
 class Schedular:
-    def __init__(self):
+    def __init__(self) -> None:
         self.data: dict[str, ZoneOption] = {}
 
-    def _proper_thing(self, selected_queue: dict, queue_type: dict):
+    def _insert_nodes(
+        self,
+        selected_queue: dict[str, bool],
+        queue_type: dict[str, bool]
+    ) -> None:
         if not selected_queue:
             selected_queue = queue_type
         else:
@@ -20,16 +24,17 @@ class Schedular:
                 if key not in queue_type.keys():
                     continue
                 queue_type[key] = value
-
             selected_queue = queue_type
 
+    def _inserting_prio_norm_nodes(
+        self,
+        zone_name: str,
+        options: ZoneOption
+    ) -> None:
+        self._insert_nodes(self.data[zone_name].prio, options.prio)
+        self._insert_nodes(self.data[zone_name].norm, options.norm)
 
-    def _adding_thing(self, zone_name: str, options: ZoneOption):
-        self._proper_thing(self.data[zone_name].prio, options.prio)
-
-        self._proper_thing(self.data[zone_name].norm, options.norm)
-
-    def add_node(self, zone_name: str, list_of_options: list[Node]):
+    def add_node(self, zone_name: str, list_of_options: list[Node]) -> None:
         prio = {}
         norm = {}
 
@@ -44,50 +49,32 @@ class Schedular:
         if self.data.get(zone_name) is None:
             self.data[zone_name] = options
         else:
-            _adding_thing(zone_name, options)
+            self._inserting_prio_norm_nodes(zone_name, options)
 
-
-
-    def retrieve_node(self, zone_name: str) -> Node:
-        print(len(self.data[zone_name].prio), len(self.data[zone_name].norm))
-
-
+    def retrieve_node(self, zone_name: str) -> str:
         if self.data[zone_name].prio:
-            if not any(list(self.data[zone_name].prio.values())):
-                key = list(self.data[zone_name].prio.keys())[0]
-                self.data[zone_name].prio[key] = True
-                return key
+            return self._get_selected_node(self.data[zone_name].prio)
+        return self._get_selected_node(self.data[zone_name].norm)
 
-            tmp = list(self.data[zone_name].prio.keys())
-            for i, key in enumerate(tmp):
-                if self.data[zone_name].prio[key]:
-                    self.data[zone_name].prio[key] = False
-
-                    if i == len(self.data[zone_name].prio) - 1:
-                        self.data[zone_name].prio[tmp[0]] = True
-                        return tmp[0]
-                    else:
-                        self.data[zone_name].prio[tmp[i + 1]] = True
-                        return tmp[i + 1]
-
-        if self.data[zone_name].norm:
-            if not any(list(self.data[zone_name].norm.values())):
-                key = list(self.data[zone_name].norm.keys())[0]
-                self.data[zone_name].norm[key] = True
-                return key
-
-            tmp = list(self.data[zone_name].norm.keys())
-            for i, key in enumerate(tmp):
-                if self.data[zone_name].norm[key]:
-                    self.data[zone_name].norm[key] = False
-
-                    if i == len(self.data[zone_name].norm) - 1:
-                        self.data[zone_name].norm[tmp[0]] = True
-                        return tmp[0]
-                    else:
-                        self.data[zone_name].norm[tmp[i + 1]] = True
-                        return tmp[i + 1]
-
-    def get_node(self, zone_name: str, list_of_options: list[Node]) -> Node:
+    def get_node(self, zone_name: str, list_of_options: list[Node]) -> str:
         self.add_node(zone_name, list_of_options)
         return self.retrieve_node(zone_name)
+
+    def _get_selected_node(self, selected_zone_type: dict[str, bool]) -> str:
+        if not any(list(selected_zone_type.values())):
+            node_name: str = list(selected_zone_type.keys())[0]
+            selected_zone_type[node_name] = True
+            return node_name
+
+        tmp: list[str] = list(selected_zone_type.keys())
+        for i, node_name in enumerate(tmp):
+            if selected_zone_type[node_name]:
+                selected_zone_type[node_name] = False
+
+                if i == len(selected_zone_type) - 1:
+                    selected_zone_type[tmp[0]] = True
+                    return tmp[0]
+                else:
+                    selected_zone_type[tmp[i + 1]] = True
+                    return tmp[i + 1]
+        raise Exception("Shouldn't happen (Mypy is happy now)")
