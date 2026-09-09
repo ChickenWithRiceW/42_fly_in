@@ -44,7 +44,8 @@ class SimulationHelper:
         if isinstance(drone.position, Connection):
             drone.position.drones[drone.id] = drone
         else:
-            con = cls._get_connection_to_next_step(drone.next_step.connections, drone.position, drone.next_step)
+            con = cls._get_connection_to_next_step(
+                drone.next_step.connections, drone.position, drone.next_step)
             con.drones[drone.id] = drone
 
     @classmethod
@@ -58,10 +59,11 @@ class SimulationHelper:
                 selected_connection = drone.next_step.connections
             con = cls._get_connection_to_next_step(
                 selected_connection, drone.position, drone.next_step)
-            con.drones.pop(drone.id)
+            con.drones.pop(drone.id, None)
 
     @staticmethod
-    def _get_connection_to_next_step(connections: list[Connection], a: Node, b: Node) -> Connection:
+    def _get_connection_to_next_step(connections: list[Connection],
+                                     a: Node, b: Node) -> Connection:
         for con in connections:
             if a == con.from_node \
                     and b == con.to_node:

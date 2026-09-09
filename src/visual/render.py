@@ -1,8 +1,8 @@
 from .models import Scale, Pos_values, Vector2
 from src.models import Config, Node, Connection, Drone
 import pygame
-from typing import Generator
-from src.simulation.helper import SimulationHelper as helper
+from src.visual.helper import RenderHelper as help
+from src.simulation.helper import SimulationHelper as simhelp
 
 
 class Render:
@@ -50,16 +50,19 @@ class Render:
                 bgcolor="darkslategray"
             )
             self.screen.blit(img, img.get_rect(
-                center=((a.x + b.x) // 2, ((a.y + b.y) // 2))))
+                center=((a.x + b.x) / 2, ((a.y + b.y) / 2))))
 
     def _render_zone(self):
         circle_radius = 0.3 * self.scale.full_scale
+        offset_text = 0.15 * self.scale.full_scale
+        offset_outline = 0.05 * self.scale.full_scale
 
         for node in self.config.nodes.values():
             a = node.pos.elementwise() * self.scale.pos
-            self._render_zone_circle(node, circle_radius, a)
+            self._render_zone_circle(node, circle_radius, offset_outline, a)
 
-            zone_cost_txt = self.font.render(str(node.cost), True, "black")
+            zone_cost_txt = self.font.render(
+                str(int(node.cost)), True, "black", bgcolor="white")
             zone_name_text = self.font.render(
                 str(node.name),
                 True,
@@ -76,12 +79,10 @@ class Render:
             self.screen.blit(
                 zone_cost_txt,
                 zone_cost_txt.get_rect(
-                    center=a.elementwise() + Vector2(0, -circle_radius + 40)))
-
+                    center=a.elementwise() + Vector2(0, -offset_text)))
             self.screen.blit(
-                zone_name_text, zone_name_text.get_rect(center=a.elementwise() + Vector2(0, -10))
+                zone_name_text, zone_name_text.get_rect(center=a)
             )
-
             self.screen.blit(
                 zone_capacity_text,
                 zone_capacity_text.get_rect(
@@ -93,53 +94,75 @@ class Render:
         count = 0
 
         for drone in self.config.drones:
+            a = Vector2(0, 0)
             if drone.position == self.config.end_node:
                 continue
 
             if self.animation:
                 self._animation(drone)
             else:
-                pos, _ = self.get_pos(drone.next_step, None)
+                pos, _ = help.get_pos(drone.next_step, None)
                 a = pos.elementwise() * self.scale.pos
 
             if drone.generator:
-                try:
-                    a = next(drone.generator)
-                    a = a.elementwise() * self.scale.pos
-
-                    con = helper._get_connection_to_next_step(
-                        self.config.connections,
-                        drone.position,
-                        drone.next_step
-                    )
-                    con.drones[drone.id] = drone
-                except StopIteration:
-                    drone.generator = None
-                    helper._clear_connection(drone)
-                    drone.position = drone.next_step
-                    drone.position.drones[drone.id] = drone
+                if (new_pos := self._moving_animation(drone, a)):
+                    a = new_pos
+                else:
                     count += 1
 
+            pygame.draw.rect(
+                self.screen,
+                "black",
+                pygame.Rect(
+                    a.x - rect_size / 2,
+                    a.y - rect_size / 2,
+                    rect_size, rect_size
+                )
+            )
 
-            pygame.draw.rect(self.screen, "black", pygame.Rect(a.x - rect_size // 2, a.y - rect_size // 2 - 8, rect_size, rect_size))
-            img = self.font.render(str(drone.id), True, "white", bgcolor="darkslategray")
-            self.screen.blit(img, img.get_rect(center = a))
-
+            img = self.font.render(
+                str(drone.id), True, "white", bgcolor="darkslategray")
+            self.screen.blit(img, img.get_rect(center=a))
 
         self.animation = False
-        if count == (len(self.action_log[self.index])) or not any(drone.generator for drone in self.config.drones):
+        if count == (len(self.action_log[self.index])) \
+                or not any(drone.generator for drone in self.config.drones):
             return False
         return True
 
-    def _render_zone_circle(self, node: Node, circle_radius: int, a: Vector2):
+    def _render_zone_circle(self, node: Node, circle_radius: int,
+                            offset_outline: int, a: Vector2):
         pygame.draw.circle(
             self.screen,
-            self._get_zone_type_color(node.metadata.zone),
+            help._get_zone_type_color(node.metadata.zone),
             a,
             circle_radius
         )
         pygame.draw.circle(
-            self.screen, node.metadata.color, a, circle_radius - 10)
+            self.screen,
+            node.metadata.color,
+            a,
+            circle_radius - offset_outline
+        )
+
+    def _moving_animation(self, drone: Drone, a: Vector2) -> int:
+        try:
+            a = next(drone.generator)
+            a = a.elementwise() * self.scale.pos
+
+            con = simhelp._get_connection_to_next_step(
+                self.config.connections,
+                drone.position,
+                drone.next_step
+            )
+            con.drones[drone.id] = drone
+        except StopIteration:
+            drone.generator = None
+            simhelp._clear_connection(drone)
+            drone.position = drone.next_step
+            drone.position.drones[drone.id] = drone
+            return None
+        return a
 
     def _animation(self, drone: Drone):
         if (content := self.action_log[self.index].get(drone.id)):
@@ -149,13 +172,16 @@ class Render:
             if isinstance(content, Connection):
                 drone.next_step.drones[drone.id] = drone
 
-            current_pos, next_pos = self.get_pos(drone.position, content)
-            drone.generator = self._move_from_a_to_b(current_pos, next_pos)
+            current_pos, next_pos = help.get_pos(drone.position, content)
+            drone.generator = help._move_from_a_to_b(current_pos, next_pos)
 
     def _scale_calc(self) -> None:
         screen_resolution = Vector2(pygame.display.get_window_size())
-        self.scale.pos = screen_resolution.elementwise() // self.pos_values.difference
-        self.scale.full_scale = (sum(screen_resolution) // sum(self.pos_values.difference))
+        self.scale.pos = (
+            screen_resolution.elementwise() / self.pos_values.difference)
+
+        self.scale.full_scale = (
+            sum(screen_resolution) / sum(self.pos_values.difference))
 
     def _start_animation(self, i) -> bool:
         self.animation = True

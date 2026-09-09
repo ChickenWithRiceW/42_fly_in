@@ -1,3 +1,3 @@
-from .parser import ConfigLoader, Config
+from .parser import ConfigLoader
 
-__all__ = ["ConfigLoader", "Config"]
+__all__ = ["ConfigLoader"]

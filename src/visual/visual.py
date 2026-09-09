@@ -1,8 +1,7 @@
 import pygame
 import pygame.locals
 
-from ..parser import Config
-
+from src.models import Config
 from .models import Pos_values, Scale, Vector2
 from .render import Render
 
@@ -37,11 +36,11 @@ def position_calc(config: Config) -> Pos_values:
 
     min_val.x = abs(min_val.x) + 0.5
     min_val.y = abs(min_val.y) + 0.5
-
     return Pos_values(min_val, max_val, difference)
 
 
-def map_prepping(config: Config, pos_values: Pos_values, action_log: list[list[tuple[str, str]]]):
+def map_prepping(config: Config, pos_values: Pos_values,
+                 action_log: list[list[tuple[str, str]]]) -> None:
     for zone in config.nodes.values():
         zone.pos = normalize_coords(zone.pos, pos_values)
 
@@ -66,7 +65,6 @@ def init(config, action_log) -> Render:
     pygame.display.toggle_fullscreen()
     pygame.display.set_caption("Fly in visual")
 
-    # Scale logic
     scale = Scale(Vector2(0, 0), 0)
     pos_values = position_calc(config)
 
@@ -76,17 +74,13 @@ def init(config, action_log) -> Render:
     return Render(config, scale, pos_values, screen, action_log)
 
 
-def visual_worker(config: Config, action_logs: list[list[tuple[str, str]]]):
-
+def visual_worker(config: Config,
+                  action_logs: list[list[tuple[str, str]]]) -> None:
     render = init(config, action_logs)
     clock = pygame.time.Clock()
 
-    selected = 0
     in_animation = False
-    automatic_animation = False
-    waiting_time = 50
 
-    print(len(config.start_node.drones))
     while True:
         # Process player inputs.
         for event in pygame.event.get():
@@ -97,39 +91,30 @@ def visual_worker(config: Config, action_logs: list[list[tuple[str, str]]]):
                 render._start_animation(1)
 
         # Do logical updates here.
-        key = pygame.key.get_just_pressed()
-        if key[pygame.locals.K_ESCAPE]:
-            pygame.event.pump(pygame.QUIT)
-        elif key[pygame.locals.K_F11]:
-            pygame.display.toggle_fullscreen()
-        elif key[pygame.locals.K_RIGHT]:
-            if not in_animation:
-                render._start_animation(1)
-        elif key[pygame.locals.K_LEFT]:
-            if not in_animation:
-                render._start_animation(-1)
-
-        elif key[pygame.locals.K_UP]:
-            waiting_time -= 50
-            pygame.time.set_timer(111, waiting_time)
-
-        elif key[pygame.locals.K_DOWN]:
-            waiting_time += 50
-            pygame.time.set_timer(111, waiting_time)
-
-        elif key[pygame.locals.K_SPACE]:
-            if automatic_animation or in_animation:
-                pygame.time.set_timer(111, 0)
-            else:
-                pygame.time.set_timer(111, waiting_time)
-
-
-
-        action_log = action_logs[selected]
-
-        # Render the graphics here.
+        _key_handler(render, in_animation)
 
         in_animation = render.visual_logic()
 
         pygame.display.update()
         clock.tick(60)
+
+
+def _key_handler(render: Render, in_animation: bool) -> None:
+    waiting_time = 50
+
+    key = pygame.key.get_just_pressed()
+    if key[pygame.locals.K_ESCAPE]:
+        pygame.event.pump(pygame.QUIT)
+    elif key[pygame.locals.K_F11]:
+        pygame.display.toggle_fullscreen()
+    elif key[pygame.locals.K_RIGHT]:
+        if not in_animation:
+            render._start_animation(1)
+    elif key[pygame.locals.K_LEFT]:
+        if not in_animation:
+            render._start_animation(-1)
+    elif key[pygame.locals.K_SPACE]:
+        if in_animation:
+            pygame.time.set_timer(111, 0)
+        else:
+            pygame.time.set_timer(111, waiting_time)

@@ -1,11 +1,24 @@
 from src.models import Config, Node, Drone, Connection, NodeType
 from .schedular import Schedular
 from .helper import SimulationHelper as helper
+import heapq
 
 
 class Simulation:
     @classmethod
-    def start(cls, config: Config) -> list[dict[int, Node | Connection]]:
+    def start(cls,
+              config: Config) -> list[dict[int, Node | Connection]] | None:
+        """Calculates simulation and returns a list of events
+
+        Args:
+            config (Config): Config object with parsed map information
+
+        Returns:
+            list[dict[int, Node | Connection]] | None: Returns full action
+                log of simulation or none if simulation was not possible
+        """
+        if not cls._pre_calculate_map(config):
+            return None
         drones: list[Drone] = []
 
         for i in range(config.nb_drones):
@@ -38,11 +51,6 @@ class Simulation:
 
             if round:
                 action_log.append(round)
-
-        # for connection in config.connections:
-        #     connection.drones.clear()
-        # for hub in config.nodes.values():
-        #     hub.drones.clear()
         return action_log
 
     @classmethod
@@ -71,7 +79,11 @@ class Simulation:
         if isinstance(drone.position, Node) \
                 and drone.next_step.metadata.zone == NodeType.RESTRICTED:
             drone.on_connection = True
-            con = helper._get_connection_to_next_step(drone.next_step.connections, drone.position, drone.next_step)
+            con = helper._get_connection_to_next_step(
+                drone.next_step.connections,
+                drone.position,
+                drone.next_step
+            )
             drone.position = con
         else:
             drone.on_connection = False
@@ -81,7 +93,6 @@ class Simulation:
         if drone.position == config.end_node:
             drone.position.drones.pop(drone.id, None)
             drone.active = False
-
         return {drone.id: drone.position}
 
     @classmethod
@@ -136,3 +147,56 @@ class Simulation:
                 # Node found is as good as node before so append to options.
                 lowest_cost_zones.append(zone)
         return lowest_cost_zones
+
+    @staticmethod
+    def _pre_calculate_map(config: Config) -> bool:
+        """Pre calculates map with dijkstra.
+
+        Args:
+            config (Config): parsed config object for access to map.
+
+        Returns:
+            bool: Returns true when map has a solution and false if not.
+        """
+        adj = config.nodes
+        src = config.end_node.name
+        pq: list[tuple[int, str]] = []
+
+        config.end_node.cost = 0
+        heapq.heappush(pq, (0, src))
+
+        while pq:
+            d, u = heapq.heappop(pq)
+
+            # If this distance not the latest shortest one, skip it
+            if d > config.nodes[u].cost:
+                continue
+
+            # Explore all neighbors of the current vertex
+            for con in adj[u].connections:
+                if con.from_node == adj[u]:
+                    node = con.to_node
+                else:
+                    node = con.from_node
+
+                if node.metadata.zone == NodeType.RESTRICTED:
+                    w = 2.0
+                elif node.metadata.zone == NodeType.BLOCKED:
+                    w = float("inf")
+                else:
+                    w = 1.0
+
+                # If we found a shorter path to v through u, update it
+                if config.nodes[u].cost + w < config.nodes[node.name].cost:
+                    config.nodes[node.name].cost = config.nodes[u].cost + w
+                    heapq.heappush(
+                        pq,
+                        (config.nodes[node.name].cost, node.name)
+                    )
+
+        if config.start_node.cost == float("inf") \
+                or config.end_node.metadata.zone == NodeType.BLOCKED:
+            print("Error: Map is not solvable")
+            return False
+        else:
+            return True
