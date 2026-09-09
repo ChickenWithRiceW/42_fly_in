@@ -44,7 +44,7 @@ class SimulationHelper:
         if isinstance(drone.position, Connection):
             drone.position.drones[drone.id] = drone
         else:
-            con = cls._get_connection_to_next_step(drone, drone.position)
+            con = cls._get_connection_to_next_step(drone.next_step.connections, drone.position, drone.next_step)
             con.drones[drone.id] = drone
 
     @classmethod
@@ -52,16 +52,21 @@ class SimulationHelper:
         if isinstance(drone.position, Connection):
             drone.position.drones.pop(drone.id, None)
         else:
-            con = cls._get_connection_to_next_step(drone, drone.position)
+            if isinstance(drone.next_step, Connection):
+                selected_connection = drone.position.connections
+            else:
+                selected_connection = drone.next_step.connections
+            con = cls._get_connection_to_next_step(
+                selected_connection, drone.position, drone.next_step)
             con.drones.pop(drone.id)
 
     @staticmethod
-    def _get_connection_to_next_step(drone: Drone, pos: Node) -> Connection:
-        for con in drone.next_step.connections:
-            if pos.name == con.from_node.name \
-                    and drone.next_step.name == con.to_node.name:
+    def _get_connection_to_next_step(connections: list[Connection], a: Node, b: Node) -> Connection:
+        for con in connections:
+            if a == con.from_node \
+                    and b == con.to_node:
                 break
-            elif pos.name == con.to_node.name \
-                    and drone.next_step.name == con.from_node.name:
+            elif a == con.to_node \
+                    and b == con.from_node:
                 break
         return con

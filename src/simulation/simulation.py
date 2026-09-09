@@ -71,7 +71,7 @@ class Simulation:
         if isinstance(drone.position, Node) \
                 and drone.next_step.metadata.zone == NodeType.RESTRICTED:
             drone.on_connection = True
-            con = helper._get_connection_to_next_step(drone, drone.position)
+            con = helper._get_connection_to_next_step(drone.next_step.connections, drone.position, drone.next_step)
             drone.position = con
         else:
             drone.on_connection = False

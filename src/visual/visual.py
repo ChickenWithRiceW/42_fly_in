@@ -11,7 +11,6 @@ def normalize_coords(pos: Vector2, pos_values: Pos_values) -> Vector2:
     return pos.elementwise() + pos_values.min_val
 
 
-
 def position_calc(config: Config) -> Pos_values:
     min_val = Vector2()
     max_val = Vector2()
@@ -95,7 +94,7 @@ def visual_worker(config: Config, action_logs: list[list[tuple[str, str]]]):
                 pygame.quit()
                 raise SystemExit
             if event.type == 111 and not in_animation:
-                render.start_animation(1)
+                render._start_animation(1)
 
         # Do logical updates here.
         key = pygame.key.get_just_pressed()
@@ -105,10 +104,10 @@ def visual_worker(config: Config, action_logs: list[list[tuple[str, str]]]):
             pygame.display.toggle_fullscreen()
         elif key[pygame.locals.K_RIGHT]:
             if not in_animation:
-                render.start_animation(1)
+                render._start_animation(1)
         elif key[pygame.locals.K_LEFT]:
             if not in_animation:
-                render.start_animation(-1)
+                render._start_animation(-1)
 
         elif key[pygame.locals.K_UP]:
             waiting_time -= 50
