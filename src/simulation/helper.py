@@ -3,7 +3,7 @@ from src.models import Node, Connection, Drone
 
 class SimulationHelper:
     @classmethod
-    def _restricted_zone_access(cls, zone: Node) -> bool:
+    def restricted_zone_access(cls, zone: Node) -> bool:
         moveable_drones = 0
         used_capacity = len(zone.drones)
 
@@ -19,7 +19,7 @@ class SimulationHelper:
         return False
 
     @staticmethod
-    def _get_opposite_zone_of_con(node: Node, con: Connection) -> Node:
+    def get_opposite_zone_of_con(node: Node, con: Connection) -> Node:
         if con.from_node.name == node.name:
             return con.to_node
         else:
@@ -30,7 +30,7 @@ class SimulationHelper:
         max_move = 0
 
         for con in node.connections:
-            o_zone = cls._get_opposite_zone_of_con(node, con)
+            o_zone = cls.get_opposite_zone_of_con(node, con)
 
             if o_zone.cost < node.cost:
                 max_move += min(
@@ -40,16 +40,17 @@ class SimulationHelper:
         return max_move
 
     @classmethod
-    def _occupy_connection(cls, drone: Drone) -> None:
+    def occupy_connection(cls, drone: Drone) -> None:
         if isinstance(drone.position, Connection):
             drone.position.drones[drone.id] = drone
         else:
-            con = cls._get_connection_to_next_step(
+            assert isinstance(drone.next_step, Node)
+            con = cls.get_connection_to_next_step(
                 drone.next_step.connections, drone.position, drone.next_step)
             con.drones[drone.id] = drone
 
     @classmethod
-    def _clear_connection(cls, drone: Drone) -> None:
+    def clear_connection(cls, drone: Drone) -> None:
         if isinstance(drone.position, Connection):
             drone.position.drones.pop(drone.id, None)
         else:
@@ -57,13 +58,14 @@ class SimulationHelper:
                 selected_connection = drone.position.connections
             else:
                 selected_connection = drone.next_step.connections
-            con = cls._get_connection_to_next_step(
+            con = cls.get_connection_to_next_step(
                 selected_connection, drone.position, drone.next_step)
             con.drones.pop(drone.id, None)
 
     @staticmethod
-    def _get_connection_to_next_step(connections: list[Connection],
-                                     a: Node, b: Node) -> Connection:
+    def get_connection_to_next_step(
+        connections: list[Connection],
+            a: Node | Connection, b: Node | Connection) -> Connection:
         for con in connections:
             if a == con.from_node \
                     and b == con.to_node:

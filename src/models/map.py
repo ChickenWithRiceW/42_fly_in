@@ -53,14 +53,16 @@ class Config(BaseModel):
     end_node: Node
     nodes: dict[str, Node]
     connections: list[Connection]
-    drones: list[Drone] | None = None
+    drones: list[Drone] = []
 
 
 class Drone(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: int
     position: Connection | Node
-    next_step: Node
+    next_step: Node | Connection
     on_connection: bool = False
     active: bool = True
-    generator: Generator | None = None
+    generator: Generator[pygame.Vector2, None, None] | None = None
     is_waiting: bool = False

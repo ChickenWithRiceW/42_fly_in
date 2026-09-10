@@ -1,10 +1,11 @@
-ENTRY = src.main
+ENTRY = src
+MAP = "example_map.txt"
 
 install:
 	uv sync
 
 run: install
-	uv run python -m $(ENTRY)
+	uv run python -m $(ENTRY) $(MAP)
 
 debug: install
 	uv run python -m pdb $(ENTRY)

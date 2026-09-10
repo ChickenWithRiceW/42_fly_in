@@ -10,7 +10,7 @@ class ZoneOption:
 
 class Schedular:
     def __init__(self) -> None:
-        self.data: dict[str, ZoneOption] = {}
+        self._data: dict[str, ZoneOption] = {}
 
     def _insert_nodes(
         self,
@@ -31,10 +31,10 @@ class Schedular:
         zone_name: str,
         options: ZoneOption
     ) -> None:
-        self._insert_nodes(self.data[zone_name].prio, options.prio)
-        self._insert_nodes(self.data[zone_name].norm, options.norm)
+        self._insert_nodes(self._data[zone_name].prio, options.prio)
+        self._insert_nodes(self._data[zone_name].norm, options.norm)
 
-    def add_node(self, zone_name: str, list_of_options: list[Node]) -> None:
+    def _add_node(self, zone_name: str, list_of_options: list[Node]) -> None:
         prio = {}
         norm = {}
 
@@ -46,19 +46,19 @@ class Schedular:
 
         options = ZoneOption(prio, norm)
 
-        if self.data.get(zone_name) is None:
-            self.data[zone_name] = options
+        if self._data.get(zone_name) is None:
+            self._data[zone_name] = options
         else:
             self._inserting_prio_norm_nodes(zone_name, options)
 
-    def retrieve_node(self, zone_name: str) -> str:
-        if self.data[zone_name].prio:
-            return self._get_selected_node(self.data[zone_name].prio)
-        return self._get_selected_node(self.data[zone_name].norm)
+    def _retrieve_node(self, zone_name: str) -> str:
+        if self._data[zone_name].prio:
+            return self._get_selected_node(self._data[zone_name].prio)
+        return self._get_selected_node(self._data[zone_name].norm)
 
-    def get_node(self, zone_name: str, list_of_options: list[Node]) -> str:
-        self.add_node(zone_name, list_of_options)
-        return self.retrieve_node(zone_name)
+    def _get_node(self, zone_name: str, list_of_options: list[Node]) -> str:
+        self._add_node(zone_name, list_of_options)
+        return self._retrieve_node(zone_name)
 
     def _get_selected_node(self, selected_zone_type: dict[str, bool]) -> str:
         if not any(list(selected_zone_type.values())):

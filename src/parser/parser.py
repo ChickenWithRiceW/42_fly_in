@@ -15,11 +15,11 @@ class FileData:
         connections: list[Connection]
     ) -> None:
 
-        self.file_name: str = file_name
-        self.nodes: dict[str, Node] = nodes
-        self.connections: list[Connection] = connections
-        self.line: list[str]
-        self.line_nb: int
+        self._file_name: str = file_name
+        self._nodes: dict[str, Node] = nodes
+        self._connections: list[Connection] = connections
+        self._line: list[str]
+        self._line_nb: int
 
 
 class ConfigLoader:
@@ -95,8 +95,8 @@ class ConfigLoader:
 
         # Index 0 is the key name.
         for line, line_nb in loaded_file:
-            data.line = line
-            data.line_nb = line_nb
+            data._line = line
+            data._line_nb = line_nb
 
             match line[0]:
                 case "nb_drones:":
@@ -149,18 +149,18 @@ class ConfigLoader:
     def _drone_parser(data: FileData, nb_drones: int | None) -> None | int:
         if nb_drones is not None:
             print(
-                f"{data.file_name}:{data.line_nb} "
+                f"{data._file_name}:{data._line_nb} "
                 "Error: nb_drones already defined")
             return None
 
         try:
-            number = int(data.line[1])
+            number = int(data._line[1])
         except ValueError as e:
-            print(f"{data.file_name}:{data.line_nb} {e}")
+            print(f"{data._file_name}:{data._line_nb} {e}")
             return None
 
         if number < 1:
-            print(f"{data.file_name}:{data.line_nb} "
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: nb_drones needs to a positive integer")
             return None
         return number
@@ -177,40 +177,40 @@ class ConfigLoader:
 
         if start_node is not None:
             print(
-                f"{data.file_name}:{data.line_nb} "
+                f"{data._file_name}:{data._line_nb} "
                 "Error: start_hub already defined")
             return None
 
         if end_node is not None:
             print(
-                f"{data.file_name}:{data.line_nb} "
+                f"{data._file_name}:{data._line_nb} "
                 "Error: end_hub already defined")
             return None
 
-        if "-" in data.line[1]:
-            print(f"{data.file_name}:{data.line_nb} "
+        if "-" in data._line[1]:
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Can't have '-' in name")
             return None
 
-        if len(data.line) == 5:
+        if len(data._line) == 5:
             metadata = cls._hub_metadata_parse(data)
             if metadata is None:
                 return None
         try:
             hub = Node(
-                name=data.line[1],
-                pos=pygame.Vector2(int(data.line[2]), int(data.line[3])),
+                name=data._line[1],
+                pos=pygame.Vector2(int(data._line[2]), int(data._line[3])),
                 metadata=metadata
             )
 
-            if hub.name in data.nodes:
-                print(f"{data.file_name}:{data.line_nb} "
+            if hub.name in data._nodes:
+                print(f"{data._file_name}:{data._line_nb} "
                       "Error: Zone duplicate found")
                 return None
             return hub
         except ValidationError as e:
             for error in e.errors():
-                print(f"{data.file_name}:{data.line_nb} "
+                print(f"{data._file_name}:{data._line_nb} "
                       f"Error: Wrong input '{error['input']}'. {error['msg']}")
             return None
 
@@ -219,19 +219,19 @@ class ConfigLoader:
 
         max_link_capacity: dict[str, str] | None = {}
 
-        if len(data.line) > 3:
-            print(f"{data.file_name}:{data.line_nb} "
+        if len(data._line) > 3:
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Connection syntax invalid")
             return None
-        split = data.line[1].split('-', maxsplit=3)
+        split = data._line[1].split('-', maxsplit=3)
 
         if len(split) < 2:
-            print(f"{data.file_name}:{data.line_nb} "
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Connection syntax invalid")
             return None
 
-        if len(data.line) == 3:
-            max_link_capacity = cls._metadata_parse(data, data.line[2])
+        if len(data._line) == 3:
+            max_link_capacity = cls._metadata_parse(data, data._line[2])
         if max_link_capacity is None:
             return None
 
@@ -244,14 +244,14 @@ class ConfigLoader:
 
         try:
             connection = Connection(
-                from_node=data.nodes[split[0]],
-                to_node=data.nodes[split[1]],
+                from_node=data._nodes[split[0]],
+                to_node=data._nodes[split[1]],
                 **max_link_capacity)
             return connection
 
         except ValidationError as e:
             for error in e.errors():
-                print(f"{data.file_name}:{data.line_nb} "
+                print(f"{data._file_name}:{data._line_nb} "
                       "Error: Wrong input "
                       f"'{error['input']}'. {error['msg']}")
             return None
@@ -261,7 +261,7 @@ class ConfigLoader:
         arguments = {}
 
         if not input.startswith('[') or not input.endswith(']'):
-            print(f"{data.file_name}:{data.line_nb} "
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Metadata syntax wrong")
             return None
 
@@ -271,7 +271,7 @@ class ConfigLoader:
         for part in split:
             # No splitting possible
             if '=' not in part:
-                print(f"{data.file_name}:{data.line_nb} "
+                print(f"{data._file_name}:{data._line_nb} "
                       "Error: Format should be: Key=Value")
                 return None
 
@@ -287,7 +287,7 @@ class ConfigLoader:
 
         metadata_arguments: dict[str, Any] | None
 
-        metadata_arguments = cls._metadata_parse(data, data.line[4])
+        metadata_arguments = cls._metadata_parse(data, data._line[4])
         if metadata_arguments is None:
             return None
         try:
@@ -295,7 +295,7 @@ class ConfigLoader:
                 if metadata_arguments["color"] in pygame.color.THECOLORS:
                     metadata_arguments["color"] = pygame.color.THECOLORS[selc]
                 else:
-                    print(f"{data.file_name}:{data.line_nb} "
+                    print(f"{data._file_name}:{data._line_nb} "
                           "Error: Color not supported. "
                           f"Supported colors: {COLOR_URL}")
                     return None
@@ -303,11 +303,11 @@ class ConfigLoader:
         except ValidationError as e:
             for error in e.errors():
                 if error["type"] == "extra_forbidden":
-                    print(f"{data.file_name}:{data.line_nb} "
+                    print(f"{data._file_name}:{data._line_nb} "
                           "Error: Metadata keyword no match "
                           f"'{error["loc"][0]}'")
                 else:
-                    print(f"{data.file_name}:{data.line_nb} "
+                    print(f"{data._file_name}:{data._line_nb} "
                           "Error: Wrong input "
                           f"{error["loc"][0]} = '{error['input']}'. "
                           f"{error['msg']}")
@@ -319,22 +319,22 @@ class ConfigLoader:
         from_node: str,
         to_node: str
     ) -> bool:
-        if from_node not in data.nodes \
-                or to_node not in data.nodes:
-            print(f"{data.file_name}:{data.line_nb} "
+        if from_node not in data._nodes \
+                or to_node not in data._nodes:
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Connection point not found")
             return False
 
         if from_node == to_node:
-            print(f"{data.file_name}:{data.line_nb} "
+            print(f"{data._file_name}:{data._line_nb} "
                   "Error: Connection can't connect to itself "
                   f"'{from_node}-{from_node}'")
             return False
 
-        for con in data.connections:
+        for con in data._connections:
             if {from_node, to_node} \
                     == {con.from_node.name, con.to_node.name}:
-                print(f"{data.file_name}:{data.line_nb} "
+                print(f"{data._file_name}:{data._line_nb} "
                       "Error: Duplicated connection found "
                       f"'{from_node}-{to_node}'")
                 return False

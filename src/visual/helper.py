@@ -6,7 +6,7 @@ from typing import Generator
 
 class RenderHelper:
     @staticmethod
-    def _get_zone_type_color(zone_type: NodeType) -> pygame.color.Color:
+    def get_zone_type_color(zone_type: NodeType) -> tuple[int, int, int, int]:
         match zone_type:
             case NodeType.NORMAL:
                 return pygame.color.THECOLORS["black"]
@@ -19,12 +19,12 @@ class RenderHelper:
 
     @staticmethod
     def get_pos(
-        current_pos: Node | Connection,
-        next_pos: Node | Connection
+        current_pos: Node | Connection | None,
+        next_pos: Node | Connection | None
     ) -> tuple[Vector2, Vector2]:
 
-        current_pos_res = None
-        next_pos_res = None
+        current_pos_res = Vector2()
+        next_pos_res = Vector2()
         if isinstance(current_pos, Connection):
             current_pos_res = (
                 current_pos.from_node.pos.elementwise()
@@ -41,8 +41,8 @@ class RenderHelper:
         return (current_pos_res, next_pos_res)
 
     @staticmethod
-    def _move_from_a_to_b(a: Vector2, b: Vector2
-                          ) -> Generator[Vector2, None, None]:
+    def move_from_a_to_b(
+            a: Vector2, b: Vector2) -> Generator[Vector2, None, None]:
         factor_of_division = 50
 
         x = (-a.x + b.x) / factor_of_division

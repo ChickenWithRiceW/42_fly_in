@@ -1,13 +1,5 @@
 from dataclasses import dataclass
-from typing import Generator
 from pygame import Vector2
-
-
-@dataclass
-class Drone:
-    id: int
-    pos: Vector2
-    animation: None | Generator = None
 
 
 @dataclass

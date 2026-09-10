@@ -12,7 +12,7 @@ dependencies = [
 # build-backend = "hatchling.build"
 
 # [tool.hatch.build.targets.wheel]
-# packages = ["src/example"]
+# packages = ["src"]
 
 [tool.mypy]
 warn_return_any = true
@@ -20,12 +20,12 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
-explicit_package_bases = true
+# explicit_package_bases = true
 mypy_path = "src"
 plugins = ['pydantic.mypy']
 
 [dependency-groups]
 dev = [
     "flake8>=7.3.0",
-    "mypy>=2.1.0",
+    "mypy>=2.3.1",
 ]
