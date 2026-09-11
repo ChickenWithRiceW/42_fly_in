@@ -6,7 +6,7 @@
 
 # Description
 The goal is to create a python program that can take any given map in the correct schema parse it and run a simulation of drones over it. It will then give you a log file and a visual representation showing how the drones would navigate the given map.
-To achieve solve the node graph (zone and connections) a pathfinding algorithm was needed, I chose dijkstra as its a good fit for node graphs that do not yet have any kind of huristic.  
+To achieve solving the node graph (zone and connections) a pathfinder algorithm was needed, I chose dijkstra as its a good fit for node graphs that do not yet have any kind of heuristic. Then I implemented a "Schedular" just to have the proper logic that drones respect capacity's and some edge cases with restricted zones.
 
 ## Parsing:
 Correct example map:
@@ -62,4 +62,10 @@ Simple Example
 
 ![](docs/simple%20example.gif)
 ----------
-![test](docs/showcase.mp4)
+![](docs/test.gif)
+
+## Path Finding and schedular
+For path finding I chose dijkstra as it worked the best with nodes without a heuristic. I only run dijkstra once pre grading the costs of every node and how many steps it takes in the best case to reach the goal. The BigO notation should be Drones can then just look at the cheapest neighbor node if its not full and take that path. For restricted zones it can be a bit more complicated as you need to figure out what will happen in two steps in order to be as efficient as possible. A restricted node could currently appear to be full but wont be in two turns meaning that the drone should already start travling to it, as it takes two turns to get there and by that time the node will be free again.
+
+[EXAMPLE]
+
