@@ -55,3 +55,11 @@ connection: waypoint2-waypoint2			# Connection connected to itself.
 • Any other parsing error must stop the program and return a clear error message indicating the line and cause.
 
 ![](docs/error%20parsing.gif)
+
+## Visual Representation/Path finding
+### Visual representation has been done with the `Pygame-ce` package
+Simple Example
+
+![](docs/simple%20example.gif)
+----------
+![](docs/showcase.webm)
