@@ -40,8 +40,12 @@ class Visual:
         return Pos_values(min_val, max_val, difference)
 
     @classmethod
-    def _map_prepping(cls, config: Config, pos_values: Pos_values,
-                      action_log: list[dict[int, Node | Connection]]) -> None:
+    def _map_prepping(
+        cls,
+        config: Config,
+        pos_values: Pos_values,
+        action_log: list[dict[int, tuple[Node | Connection, bool]]]
+    ) -> None:
         for zone in config.nodes.values():
             zone.pos = cls._normalize_coords(zone.pos, pos_values)
 
@@ -51,14 +55,17 @@ class Visual:
             drone.next_step = config.start_node
             config.start_node.drones[drone.id] = drone
 
-        bla_list: dict[int, Node | Connection] = {}
+        bla_list: dict[int, tuple[Node | Connection, bool]] = {}
         for drone in config.drones:
-            bla_list.update({drone.id: config.start_node})
+            bla_list.update({drone.id: (config.start_node, False)})
         action_log.insert(0, bla_list)
 
     @classmethod
-    def _init(cls, config: Config,
-              action_log: list[dict[int, Node | Connection]]) -> Render:
+    def _init(
+        cls,
+        config: Config,
+        action_log: list[dict[int, tuple[Node | Connection, bool]]]
+    ) -> Render:
         pygame.init()
 
         screen_resolution = Vector2(pygame.display.get_desktop_sizes()[0])
@@ -76,8 +83,11 @@ class Visual:
         return Render(config, scale, pos_values, screen, action_log)
 
     @classmethod
-    def start(cls, config: Config,
-              action_logs: list[dict[int, Node | Connection]]) -> None:
+    def start(
+        cls,
+        config: Config,
+        action_logs: list[dict[int, tuple[Node | Connection, bool]]]
+    ) -> None:
         render = cls._init(config, action_logs)
         clock = pygame.time.Clock()
 
@@ -91,9 +101,9 @@ class Visual:
                     pygame.quit()
                     raise SystemExit
                 if event.type == 111 and not in_animation:
-                    render._start_animation(1)
+                    if not render.start_animation(1):
+                        pygame.time.set_timer(111, 0)
 
-            # Do logical updates here.
             cls._key_handler(render, in_animation)
 
             in_animation = render.visual_logic()
@@ -114,14 +124,14 @@ class Visual:
             pygame.display.toggle_fullscreen()
         elif key[pygame.locals.K_RIGHT]:
             if not in_animation:
-                render._start_animation(1)
+                render.start_animation(1)
         elif key[pygame.locals.K_LEFT]:
             if not in_animation:
-                render._start_animation(-1)
+                render.start_animation(-1)
         elif key[pygame.locals.K_SPACE]:
             if in_animation:
                 pygame.time.set_timer(111, 0)
             else:
                 pygame.time.set_timer(111, waiting_time)
         elif key[pygame.locals.K_r]:
-            render._reset()
+            render.reset()

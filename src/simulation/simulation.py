@@ -8,7 +8,7 @@ class Simulation:
     def __init__(self, config: Config):
         self._config = config
         self._drones: list[Drone] = []
-        self._logs: list[dict[int, Node | Connection]] = []
+        self._logs: list[dict[int, tuple[Node | Connection, bool]]] = []
         self._schedular = Schedular()
 
     def solve(self) -> bool:
@@ -18,8 +18,9 @@ class Simulation:
             config (Config): Config object with parsed map information
 
         Returns:
-            list[dict[int, Node | Connection]] | None: Returns full action
-                log of simulation or none if simulation was not possible
+            list[dict[int, tuple[Node | Connection, bool]]] | None: Returns
+                full action log of simulation
+                or none if simulation was not possible
         """
         if not self._pre_calculate_map():
             return False
@@ -32,7 +33,7 @@ class Simulation:
             )
         self._config.drones = self._drones
 
-        action_log: list[dict[int, Node | Connection]] = []
+        action_log: list[dict[int, tuple[Node | Connection, bool]]] = []
         count = 0
 
         while count != self._config.nb_drones:
@@ -47,10 +48,11 @@ class Simulation:
 
             for drone in self._drones:
                 if not drone.active or drone.is_waiting:
+                    round.update({drone.id: (drone.position, False)})
                     continue
                 round.update(self._finalized(drone))
 
-            if round:
+            if round and count != self._config.nb_drones:
                 action_log.append(round)
         self._logs = action_log
         return True
@@ -66,13 +68,13 @@ class Simulation:
         helper.occupy_connection(drone)
         drone.next_step.drones[drone.id] = drone
 
-    def _finalized(self, drone: Drone) -> dict[int, Node | Connection]:
+    def _finalized(self, drone: Drone
+                   ) -> dict[int, tuple[Node | Connection, bool]]:
         assert isinstance(drone.next_step, Node)
         if isinstance(drone.position, Node) \
                 and drone.next_step.metadata.zone == NodeType.RESTRICTED:
             drone.on_connection = True
             con = helper.get_connection_to_next_step(
-                drone.next_step.connections,
                 drone.position,
                 drone.next_step
             )
@@ -85,7 +87,7 @@ class Simulation:
         if drone.position == self._config.end_node:
             drone.position.drones.pop(drone.id, None)
             drone.active = False
-        return {drone.id: drone.position}
+        return {drone.id: (drone.position, True)}
 
     def _node_selection(self, drone: Drone) -> bool:
         lowest_cost_nodes = []
@@ -140,16 +142,19 @@ class Simulation:
                 if not turn:
                     continue
                 turn_list = []
-                for id, value in turn.items():
+                for id, (value, valid) in turn.items():
+                    if not valid:
+                        continue
                     if isinstance(value, Connection):
                         turn_list.append(
-                            f"D{id + 1} "
+                            f"D{id + 1}"
                             f"-{value.from_node.name}-{value.to_node.name}")
                     else:
                         turn_list.append(f"D{id + 1}-{value.name}")
-                print(*turn_list, file=file)
+                if turn_list:
+                    print(*turn_list, file=file)
 
-    def get_logs(self) -> list[dict[int, Node | Connection]]:
+    def get_logs(self) -> list[dict[int, tuple[Node | Connection, bool]]]:
         return self._logs
 
     def _pre_calculate_map(self) -> bool:

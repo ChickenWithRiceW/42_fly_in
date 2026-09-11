@@ -20,7 +20,7 @@ build/
 # Test cache
 .pytest_cache/
 
-# IDE files (optional but common)
+# IDE files
 .vscode/
 .idea/
 

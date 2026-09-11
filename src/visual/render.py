@@ -14,7 +14,7 @@ class Render:
             scale: Scale,
             pos_values: Pos_values,
             screen: pygame.Surface,
-            action_log: list[dict[int, Node | Connection]]
+            action_log: list[dict[int, tuple[Node | Connection, bool]]]
     ) -> None:
         self._config = config
         self._scale = scale
@@ -23,11 +23,9 @@ class Render:
         self._animation_gen = False
         self._action_log = action_log
         self._index = 0
-        self._reverse: bool = False
 
     def visual_logic(self) -> bool:
         self._screen.fill("white")
-
         self._scale_calc()
 
         font = pygame.font.SysFont("Arial", int(0.10 * self._scale.full_scale))
@@ -43,7 +41,6 @@ class Render:
         )
         self._screen.blit(img, Vector2(5, 5))
         res = self._render_drone()
-        self._reverse = False
         return res
 
     def _render_lines(self) -> None:
@@ -65,15 +62,20 @@ class Render:
 
     def _render_zone(self) -> None:
         circle_radius = 0.3 * self._scale.full_scale
-        offset_text = 0.15 * self._scale.full_scale
+        offset_text = 0.18 * self._scale.full_scale
         offset_outline = 0.05 * self._scale.full_scale
 
         for node in self._config.nodes.values():
             a = node.pos.elementwise() * self._scale.pos
             self._render_zone_circle(node, circle_radius, offset_outline, a)
 
+            if node.cost == float("inf"):
+                cost_txt = '∞'
+            else:
+                cost_txt = str(int(node.cost))
+
             zone_cost_txt = self._font.render(
-                str(int(node.cost)), True, "black", bgcolor="white")
+                cost_txt, True, "black", bgcolor="white")
             zone_name_text = self._font.render(
                 str(node.name),
                 True,
@@ -97,23 +99,18 @@ class Render:
             self._screen.blit(
                 zone_capacity_text,
                 zone_capacity_text.get_rect(
-                    center=(a.x, int(a.y + 0.15 * self._scale.full_scale)))
+                    center=(a.x, int(a.y + 0.17 * self._scale.full_scale)))
             )
 
     def _render_drone(self) -> bool:
-        rect_size = 0.25 * self._scale.full_scale
+        rect_size = 0.24 * self._scale.full_scale
         count = 0
 
         for drone in self._config.drones:
-            a = Vector2(0, 0)
-            if drone.position == self._config.end_node:
-                # if not self._reverse:
-                continue
+            a = Vector2()
 
-            if self._animation_gen:
-                self._animation(drone)
-            else:
-                pos, _ = help.get_pos(drone.next_step, None)
+            if not self._animation_gen or not self._animation(drone):
+                pos = help.get_pos(drone.next_step)
                 a = pos.elementwise() * self._scale.pos
 
             if drone.generator:
@@ -133,7 +130,7 @@ class Render:
             )
 
             img = self._font.render(
-                str(drone.id), True, "white", bgcolor="darkslategray")
+                str(drone.id + 1), True, "white", bgcolor="darkslategray")
             self._screen.blit(img, img.get_rect(center=a))
 
         self._animation_gen = False
@@ -165,32 +162,37 @@ class Render:
             a = a.elementwise() * self._scale.pos
 
             con = simhelp.get_connection_to_next_step(
-                self._config.connections,
                 drone.position,
                 drone.next_step
             )
             con.drones[drone.id] = drone
+
         except StopIteration:
             drone.generator = None
             simhelp.clear_connection(drone)
-            print(drone.id, drone.position.name, drone.next_step.name)
             drone.position = drone.next_step
             drone.position.drones[drone.id] = drone
             return None
         return a
 
-    def _animation(self, drone: Drone) -> None:
+    def _animation(self, drone: Drone) -> bool:
         if (content := self._action_log[self._index].get(drone.id)):
-            drone.next_step = content
+            if content[0] == drone.position:
+                return False
+            drone.next_step = content[0]
 
-            if isinstance(content, Connection):
+            if isinstance(content[0], Connection):
+                drone.position.drones.pop(drone.id)
                 drone.next_step.drones[drone.id] = drone
             else:
                 if isinstance(drone.position, Node):
                     drone.position.drones.pop(drone.id)
 
-            current_pos, next_pos = help.get_pos(drone.position, content)
+            current_pos = help.get_pos(drone.position)
+            next_pos = help.get_pos(content[0])
             drone.generator = help.move_from_a_to_b(current_pos, next_pos)
+            return True
+        return False
 
     def _scale_calc(self) -> None:
         screen_resolution = Vector2(pygame.display.get_window_size())
@@ -200,21 +202,21 @@ class Render:
         self._scale.full_scale = int(
             sum(screen_resolution) / sum(self._pos_values.difference))
 
-    def _start_animation(self, i: int) -> None:
+    def start_animation(self, i: int) -> bool:
         self._animation_gen = True
         self._index += i
-        if i < 0:
-            self._reverse = True
         if self._index == -1 or self._index == len(self._action_log):
-            self._index = 0
-            for drone in self._config.drones:
-                self._config.start_node.drones[drone.id] = drone
-                drone.position = self._config.start_node
-                drone.next_step = self._config.start_node
+            self._animation_gen = False
+            self.reset()
+            return False
+        return True
 
-    def _reset(self) -> None:
-        [con.drones.clear() for con in self._config.connections]
-        [node.drones.clear() for node in self._config.nodes.values()]
+    def reset(self) -> None:
+        for con in self._config.connections:
+            con.drones.clear()
+        for node in self._config.nodes.values():
+            node.drones.clear()
+
         for drone in self._config.drones:
             drone.position = self._config.start_node
             drone.next_step = self._config.start_node

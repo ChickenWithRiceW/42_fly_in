@@ -8,11 +8,21 @@ class App:
     @staticmethod
     def main() -> None:
         if len(sys.argv) != 2:
-            print("Usage: ./fly_in <Map_file>")
+            print("Usage: python3 -m src <Map_file>")
             return
 
         if not (config := ConfigLoader.config_loader(sys.argv[1])):
             return
+
+        if config.nb_drones > 999:
+            print(f"WARNING: {config.nb_drones} drones, are you sure"
+                  " to run the program. This program is not made to handle "
+                  "this amount of drones")
+            user_choice = input("Y or N: ")
+            if user_choice.lower() != "y":
+                print("Aborted.")
+                return
+            print("Good luck.")
 
         sim = Simulation(config)
 

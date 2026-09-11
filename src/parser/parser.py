@@ -152,6 +152,11 @@ class ConfigLoader:
                 f"{data._file_name}:{data._line_nb} "
                 "Error: nb_drones already defined")
             return None
+        if len(data._line) != 2:
+            print(
+                f"{data._file_name}:{data._line_nb} "
+                "Error: Expected: 'nb_drones: <integer>'")
+            return None
 
         try:
             number = int(data._line[1])
@@ -175,6 +180,12 @@ class ConfigLoader:
 
         metadata: NodeMetadata | None = NodeMetadata()
 
+        if len(data._line) < 4:
+            print(f"{data._file_name}:{data._line_nb} "
+                  "Error: Expects: 'hub: <hub_name> "
+                  "<x y> <metadata (optional)>'")
+            return None
+
         if start_node is not None:
             print(
                 f"{data._file_name}:{data._line_nb} "
@@ -189,7 +200,7 @@ class ConfigLoader:
 
         if "-" in data._line[1]:
             print(f"{data._file_name}:{data._line_nb} "
-                  "Error: Can't have '-' in name")
+                  "Error: Hubs can't have a dash or space in name")
             return None
 
         if len(data._line) == 5:
@@ -213,13 +224,18 @@ class ConfigLoader:
                 print(f"{data._file_name}:{data._line_nb} "
                       f"Error: Wrong input '{error['input']}'. {error['msg']}")
             return None
+        except ValueError:
+            print(f"{data._file_name}:{data._line_nb} "
+                  f"Error: '{data._line[2]} {data._line[3]}'"
+                  " coordinates must be integer")
+            return None
 
     @classmethod
     def _connection_parser(cls, data: FileData) -> Connection | None:
 
         max_link_capacity: dict[str, str] | None = {}
 
-        if len(data._line) > 3:
+        if len(data._line) > 3 or len(data._line) < 2:
             print(f"{data._file_name}:{data._line_nb} "
                   "Error: Connection syntax invalid")
             return None
@@ -251,10 +267,22 @@ class ConfigLoader:
 
         except ValidationError as e:
             for error in e.errors():
-                print(f"{data._file_name}:{data._line_nb} "
-                      "Error: Wrong input "
-                      f"'{error['input']}'. {error['msg']}")
+                if error["type"] == "extra_forbidden":
+                    print(f"{data._file_name}:{data._line_nb} "
+                          "Error: Metadata keyword no match "
+                          f"'{error["loc"][0]}'")
+                else:
+                    print(f"{data._file_name}:{data._line_nb} "
+                          "Error: Wrong input "
+                          f"{error["loc"][0]} = '{error['input']}'. "
+                          f"{error['msg']}")
             return None
+        # except ValidationError as e:
+        #     for error in e.errors():
+        #         print(f"{data._file_name}:{data._line_nb} "
+        #               "Error: Wrong input "
+        #               f"'{error['input']}'. {error['msg']}")
+        #     return None
 
     @staticmethod
     def _metadata_parse(data: FileData, input: str) -> dict[str, Any] | None:

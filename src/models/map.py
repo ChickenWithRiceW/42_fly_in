@@ -40,6 +40,8 @@ class Node(BaseModel):
 
 
 class Connection(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     from_node: Node
     to_node: Node
     max_link_capacity: int = Field(ge=1, default=1)

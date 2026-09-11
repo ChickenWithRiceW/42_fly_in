@@ -9,36 +9,28 @@ class RenderHelper:
     def get_zone_type_color(zone_type: NodeType) -> tuple[int, int, int, int]:
         match zone_type:
             case NodeType.NORMAL:
-                return pygame.color.THECOLORS["black"]
+                return pygame.color.THECOLORS["grey25"]
             case NodeType.PRIORITY:
-                return pygame.color.THECOLORS["yellow"]
+                return pygame.color.THECOLORS["yellow3"]
             case NodeType.BLOCKED:
-                return pygame.color.THECOLORS["red"]
+                return pygame.color.THECOLORS["orangered3"]
             case NodeType.RESTRICTED:
-                return pygame.color.THECOLORS["orange"]
+                return pygame.color.THECOLORS["violetred2"]
 
     @staticmethod
     def get_pos(
-        current_pos: Node | Connection | None,
-        next_pos: Node | Connection | None
-    ) -> tuple[Vector2, Vector2]:
+        pos: Node | Connection | None,
+    ) -> Vector2:
 
-        current_pos_res = Vector2()
-        next_pos_res = Vector2()
-        if isinstance(current_pos, Connection):
-            current_pos_res = (
-                current_pos.from_node.pos.elementwise()
-                + current_pos.to_node.pos) / 2
-        elif isinstance(current_pos, Node):
-            current_pos_res = current_pos.pos
+        pos_res = Vector2()
+        if isinstance(pos, Connection):
+            pos_res = (
+                pos.from_node.pos.elementwise()
+                + pos.to_node.pos) / 2
+        elif isinstance(pos, Node):
+            pos_res = pos.pos
 
-        if isinstance(next_pos, Connection):
-            next_pos_res = (
-                next_pos.from_node.pos.elementwise()
-                + next_pos.to_node.pos) / 2
-        elif isinstance(next_pos, Node):
-            next_pos_res = next_pos.pos
-        return (current_pos_res, next_pos_res)
+        return pos_res
 
     @staticmethod
     def move_from_a_to_b(
