@@ -65,6 +65,9 @@ class ConfigLoader:
         except FileNotFoundError as e:
             print(f"{e}")
             return None
+        except PermissionError as e:
+            print(f"{e}")
+            return None
         return split
 
     @classmethod
@@ -275,11 +278,11 @@ class ConfigLoader:
                 if error["type"] == "extra_forbidden":
                     print(f"{data._file_name}:{data._line_nb} "
                           "Error: Metadata keyword no match "
-                          f"'{error["loc"][0]}'")
+                          f"'{error['loc'][0]}'")
                 else:
                     print(f"{data._file_name}:{data._line_nb} "
                           "Error: Wrong input "
-                          f"{error["loc"][0]} = '{error['input']}'. "
+                          f"{error['loc'][0]} = '{error['input']}'. "
                           f"{error['msg']}")
             return None
         # except ValidationError as e:
@@ -339,11 +342,11 @@ class ConfigLoader:
                 if error["type"] == "extra_forbidden":
                     print(f"{data._file_name}:{data._line_nb} "
                           "Error: Metadata keyword no match "
-                          f"'{error["loc"][0]}'")
+                          f"'{error['loc'][0]}'")
                 else:
                     print(f"{data._file_name}:{data._line_nb} "
                           "Error: Wrong input "
-                          f"{error["loc"][0]} = '{error['input']}'. "
+                          f"{error['loc'][0]} = '{error['input']}'. "
                           f"{error['msg']}")
             return None
 
