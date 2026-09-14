@@ -11,11 +11,11 @@ To achieve solving the node graph (zone and connections) a pathfinder algorithm 
 # Instructions
 
 ```
-Make install		# Install dependency's with UV
-Make lint			# Will run mypy and flake8
-Make lint-strict	# Will run mypy --strict and flake8 (Optional)
+make install		# Install dependency's with UV
+make lint			# Will run mypy and flake8
+make lint-strict	# Will run mypy --strict and flake8 (Optional)
 
-Make run			# Will try to read from example_map.txt
+make run			# Will try to read from example_map.txt
 uv run python3 -m src <map_config_file>	# Provide the file name you want to read from. 
 ```
 
