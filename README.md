@@ -8,6 +8,17 @@
 The goal is to create a python program that can take any given map in the correct schema parse it and run a simulation of drones over it. It will then give you a log file and a visual representation showing how the drones would navigate the given map.
 To achieve solving the node graph (zone and connections) a pathfinder algorithm was needed, I chose dijkstra as its a good fit for node graphs that do not yet have any kind of heuristic. Then I implemented a "Schedular" just to have the proper logic that drones respect capacity's and some edge cases with restricted zones.
 
+# Instructions
+
+```
+Make install		# Install dependency's with UV
+Make lint			# Will run mypy and flake8
+Make lint-strict	# Will run mypy --strict and flake8 (Optional)
+
+Make run			# Will try to read from example_map.txt
+uv run python3 -m src <map_config_file>	# Provide the file name you want to read from. 
+```
+
 ## Parsing:
 Correct example map:
 ```
