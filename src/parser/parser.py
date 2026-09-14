@@ -213,12 +213,6 @@ class ConfigLoader:
                 pos=pygame.Vector2(int(data._line[2]), int(data._line[3])),
                 metadata=metadata
             )
-
-            if hub.name in data._nodes:
-                print(f"{data._file_name}:{data._line_nb} "
-                      "Error: Zone duplicate found")
-                return None
-            return hub
         except ValidationError as e:
             for error in e.errors():
                 print(f"{data._file_name}:{data._line_nb} "
@@ -229,6 +223,17 @@ class ConfigLoader:
                   f"Error: '{data._line[2]} {data._line[3]}'"
                   " coordinates must be integer")
             return None
+
+        if hub.name in data._nodes:
+            print(f"{data._file_name}:{data._line_nb} "
+                  "Error: Zone duplicate found")
+            return None
+        for node in data._nodes.values():
+            if node.pos == hub.pos:
+                print(f"{data._file_name}:{data._line_nb} "
+                      "Error: Zone coordinates overlap with other zone.")
+                return None
+        return hub
 
     @classmethod
     def _connection_parser(cls, data: FileData) -> Connection | None:
@@ -318,6 +323,7 @@ class ConfigLoader:
         metadata_arguments = cls._metadata_parse(data, data._line[4])
         if metadata_arguments is None:
             return None
+
         try:
             if (selc := metadata_arguments.get("color")) is not None:
                 if metadata_arguments["color"] in pygame.color.THECOLORS:
