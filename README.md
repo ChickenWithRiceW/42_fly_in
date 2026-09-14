@@ -64,8 +64,19 @@ Simple Example
 ----------
 ![](docs/test.gif)
 
+
+The zones are color coded meaning that the outer ring of a zone represents the zone type. Grey means normal, magenta means restricted, red means blocked and dark yellow means priority.
+There is also a step cost displayed on every zone showing how many steps it takes to get to the goal in a optimal setting. Other then that it shows name and capacity below. In the left upper corner a round counter is visible.
+
+You can use space to automatically run the simulation or the arrow keys to go back and forth. 'R' resets the view.
+
 ## Path Finding and schedular
-For path finding I chose dijkstra as it worked the best with nodes without a heuristic. I only run dijkstra once pre grading the costs of every node and how many steps it takes in the best case to reach the goal. The BigO notation should be Drones can then just look at the cheapest neighbor node if its not full and take that path. For restricted zones it can be a bit more complicated as you need to figure out what will happen in two steps in order to be as efficient as possible. A restricted node could currently appear to be full but wont be in two turns meaning that the drone should already start travling to it, as it takes two turns to get there and by that time the node will be free again.
+For path finding I chose dijkstra as it worked the best with nodes without a heuristic. I only run dijkstra once pre-grading the costs of every node and how many steps it takes in the best case to reach the goal.
+Time Complexity: O((V+E)*logV).\
+Drones can just look at the cheapest neighbor node if its not full and take that path. For restricted zones it can be a bit more complicated as you need to figure out what will happen in two steps in order to be as efficient as possible. A restricted node could currently appear to be full but wont be in two turns meaning that the drone should already start traveling to it, as it takes two turns to get there and by that time the node will be free again.
 
-[EXAMPLE]
+![](docs/edge%20case%20restricted%20waiting.gif)
 
+## Resources
+- Dijkstra implementation: https://www.geeksforgeeks.org/dsa/dijkstras-shortest-path-algorithm-greedy-algo-7/
+- Pygame colors: https://www.pygame.org/docs/ref/color_list.html
